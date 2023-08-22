@@ -404,13 +404,13 @@ for i in range(n_pts):
         obj_kshap_indep = cv_kshap_compare(f_model, X_train, xloci,
                             independent_features,
                             gradient, hessian,
-                            shap_CV_true=shap_CV_true_dep,
+                            shap_CV_true=shap_CV_true_indep,
                             M=1000, n_samples_per_perm=10, K = 100, n_boot=250)        
         sims_kshap_indep.append(obj_kshap_indep)
         
         obj_ss_indep = cv_shapley_sampling(f_model, X_train, xloci, 
                                 independent_features,
-                                gradient, hessian, shap_CV_true=shap_CV_true_dep,
+                                gradient, hessian, shap_CV_true=shap_CV_true_indep,
                                 M=1000, n_samples_per_perm=10)
         sims_ss_indep.append(obj_ss_indep)
         

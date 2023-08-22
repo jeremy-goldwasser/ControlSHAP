@@ -201,12 +201,12 @@ print(np.array([rank_shap(vshap_ests_model),rank_shap(final_ests_boot),rank_shap
 # And now we should also do a simulation:
     
 np.random.seed(1863)
-n_iter = 200
+n_iter = 50
 independent_features = True
 objs_kshap_indep = []
 objs_ss_indep = []
 for _ in range(n_iter):
-    obj_indep = cv_kshap_compare(modebl, X, xloc, 
+    obj_indep = cv_kshap_compare(model, X, xloc, 
                 independent_features,
                 gradient, hessian,
                 M=1000, n_samples_per_perm=10, 
@@ -396,13 +396,13 @@ for i in range(n_pts):
         obj_kshap_indep = cv_kshap_compare(model, X, xloci,
                             independent_features,
                             gradient, hessian,
-                            shap_CV_true=shap_CV_true_dep,
+                            shap_CV_true=shap_CV_true_indep,
                             M=M, n_samples_per_perm=n_samples_per_perm, K = K, n_boot=n_boot)        
         sims_kshap_indep.append(obj_kshap_indep)
         
         obj_ss_indep = cv_shapley_sampling(model, X, xloci, 
                                 independent_features,
-                                gradient, hessian, shap_CV_true=shap_CV_true_dep,
+                                gradient, hessian, shap_CV_true=shap_CV_true_indep,
                                 M=M, n_samples_per_perm=n_samples_per_perm)
         sims_ss_indep.append(obj_ss_indep)
         
@@ -476,10 +476,30 @@ plt.errorbar(xpts,reducs_dep_50,yerr=np.array([reducs_dep_50-reducs_dep_25,reduc
 plt.ylim([0,1])
 
 
+#%% Just a curiousity look at actual variances
+
+vq_ss_indep = np.quantile(vars_ss_indep,(0.25,0.5,0.75),axis=0)
+vq_ss_dep = np.quantile(vars_ss_dep,(0.25,0.5,0.75),axis=0)
+
+vq_kshap_indep = np.quantile(vars_kshap_indep,(0.25,0.5,0.75),axis=0)
+vq_kshap_dep = np.quantile(vars_kshap_indep,(0.25,0.5,0.75),axis=0)
 
 
+xx = np.arange(d)
+
+plt.errorbar(xx-0.15,vq_ss_indep[1,1,:],np.diff(vq_ss_indep[:,1,:],axis=0),fmt='o')
+plt.errorbar(xx-0.05,vq_kshap_indep[1,0,:],np.diff(vq_kshap_indep[:,0,:],axis=0),fmt='o')
+plt.errorbar(xx+0.05,vq_ss_indep[1,0,:],np.diff(vq_ss_indep[:,0,:],axis=0),fmt='o')
+plt.errorbar(xx+0.15,vq_kshap_indep[1,6,:],np.diff(vq_kshap_indep[:,6,:],axis=0),fmt='o')
+
+plt.errorbar(xx-0.15,vq_ss_dep[1,1,:],np.diff(vq_ss_dep[:,1,:],axis=0),fmt='o')
+plt.errorbar(xx-0.05,vq_kshap_dep[1,0,:],np.diff(vq_kshap_dep[:,0,:],axis=0),fmt='o')
+plt.errorbar(xx+0.05,vq_ss_dep[1,0,:],np.diff(vq_ss_dep[:,0,:],axis=0),fmt='o')
+plt.errorbar(xx+0.15,vq_kshap_dep[1,6,:],np.diff(vq_kshap_dep[:,6,:],axis=0),fmt='o')
 
 #%% Bias in estiamted correlation between CV and control variates
+
+## NOTE, I THINK THIS IS SCREWED UP BY SCALING ISSUES
 
 
 mean_covest_indep = np.array([[means_ss_indep[i][3] for i in range(n_pts)],
@@ -577,41 +597,47 @@ wls_rank_cors_dep = []
 
 
 for i in range(n_pts):
-    rankmat = np.array([rankdata(sss_indep[i][j][0]) for j in range(nsim_per_point)])
-    ss_rank_cors_indep.append(np.mean(np.corrcoef(rankmat)))
-
-    rankmat = np.array([rankdata(sss_dep[i][j][0]) for j in range(nsim_per_point)])
-    ss_rank_cors_dep.append(np.mean(np.corrcoef(rankmat)))
-
     rankmat = np.array([rankdata(sss_indep[i][j][1]) for j in range(nsim_per_point)])
-    cv_rank_cors_indep.append(np.mean(np.corrcoef(rankmat)))
+    ss_rank_cors_indep.append(np.sum(np.abs(rankmat[:,None,:]-rankmat[None,:,:]))/n_pts**2)
 
     rankmat = np.array([rankdata(sss_dep[i][j][1]) for j in range(nsim_per_point)])
-    cv_rank_cors_dep.append(np.mean(np.corrcoef(rankmat)))  
+    ss_rank_cors_dep.append(np.sum(np.abs(rankmat[:,None,:]-rankmat[None,:,:]))/n_pts**2)
+
+    rankmat = np.array([rankdata(sss_indep[i][j][0]) for j in range(nsim_per_point)])
+    cv_rank_cors_indep.append(np.sum(np.abs(rankmat[:,None,:]-rankmat[None,:,:]))/n_pts**2)
+
+    rankmat = np.array([rankdata(sss_dep[i][j][0]) for j in range(nsim_per_point)])
+    cv_rank_cors_dep.append(np.sum(np.abs(rankmat[:,None,:]-rankmat[None,:,:]))/n_pts**2)  
 
 
     rankmat = np.array([rankdata(kshaps_indep[i][j][0]) for j in range(nsim_per_point)])
-    kshap_rank_cors_indep.append(np.mean(np.corrcoef(rankmat)))
+    kshap_rank_cors_indep.append(np.sum(np.abs(rankmat[:,None,:]-rankmat[None,:,:]))/n_pts**2)
 
     rankmat = np.array([rankdata(kshaps_dep[i][j][0]) for j in range(nsim_per_point)])
-    kshap_rank_cors_dep.append(np.mean(np.corrcoef(rankmat)))
+    kshap_rank_cors_dep.append(np.sum(np.abs(rankmat[:,None,:]-rankmat[None,:,:]))/n_pts**2)
 
     rankmat = np.array([rankdata(kshaps_indep[i][j][2]) for j in range(nsim_per_point)])
-    boot_rank_cors_indep.append(np.mean(np.corrcoef(rankmat)))
+    boot_rank_cors_indep.append(np.sum(np.abs(rankmat[:,None,:]-rankmat[None,:,:]))/n_pts**2)
 
     rankmat = np.array([rankdata(kshaps_dep[i][j][2]) for j in range(nsim_per_point)])
-    boot_rank_cors_dep.append(np.mean(np.corrcoef(rankmat)))
+    boot_rank_cors_dep.append(np.sum(np.abs(rankmat[:,None,:]-rankmat[None,:,:]))/n_pts**2)
 
     rankmat = np.array([rankdata(kshaps_indep[i][j][4]) for j in range(nsim_per_point)])
-    group_rank_cors_indep.append(np.mean(np.corrcoef(rankmat)))
+    group_rank_cors_indep.append(np.sum(np.abs(rankmat[:,None,:]-rankmat[None,:,:]))/n_pts**2)
 
     rankmat = np.array([rankdata(kshaps_dep[i][j][4]) for j in range(nsim_per_point)])
-    group_rank_cors_dep.append(np.mean(np.corrcoef(rankmat)))
+    group_rank_cors_dep.append(np.sum(np.abs(rankmat[:,None,:]-rankmat[None,:,:]))/n_pts**2)
 
     rankmat = np.array([rankdata(kshaps_indep[i][j][6]) for j in range(nsim_per_point)])
-    wls_rank_cors_indep.append(np.mean(np.corrcoef(rankmat)))
+    wls_rank_cors_indep.append(np.sum(np.abs(rankmat[:,None,:]-rankmat[None,:,:]))/n_pts**2)
 
     rankmat = np.array([rankdata(kshaps_dep[i][j][6]) for j in range(nsim_per_point)])
-    wls_rank_cors_dep.append(np.mean(np.corrcoef(rankmat)))
+    wls_rank_cors_dep.append(np.sum(np.abs(rankmat[:,None,:]-rankmat[None,:,:]))/n_pts**2)
 
 
+plt.hist([ss_rank_cors_dep,cv_rank_cors_dep])
+plt.hist([ss_rank_cors_indep,cv_rank_cors_indep])
+
+
+plt.hist([kshap_rank_cors_dep,wls_rank_cors_dep])
+plt.hist([kshap_rank_cors_indep,wls_rank_cors_indep])
