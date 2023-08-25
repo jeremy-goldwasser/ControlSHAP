@@ -60,13 +60,20 @@ def compute_cond_mean_and_cov(xloc, S, feature_means, cov_mat):
     cov_SS = cov_mat[S][:, S]
     try:
         cov_SS_inv = np.linalg.inv(cov_SS) # Bad things happen here
-        cov_ScS = cov_mat[Sc][:, S]
-        conditional_means = feature_means[Sc] + np.matmul(np.matmul(cov_ScS, cov_SS_inv), xloc[0][S] - feature_means[S])
-        cov_ScSc = cov_mat[Sc][:, Sc]
-        conditional_cov = cov_ScSc - np.matmul(np.matmul(cov_ScS, cov_SS_inv), cov_ScS.T)
-        return conditional_means, conditional_cov
     except:
-        return None, None
+        u, s, vh = np.linalg.svd(cov_SS, full_matrices=True)
+        K = 10000
+        s_max = s[0]
+        min_acceptable = s_max/K
+        s2 = np.copy(s)
+        s2[s <= min_acceptable] = min_acceptable
+        cov_SS = np.matmul(u, np.matmul(np.diag(s2), vh))
+    cov_ScS = cov_mat[Sc][:, S]
+    conditional_means = feature_means[Sc] + np.matmul(np.matmul(cov_ScS, cov_SS_inv), xloc[0][S] - feature_means[S])
+    cov_ScSc = cov_mat[Sc][:, Sc]
+    conditional_cov = cov_ScSc - np.matmul(np.matmul(cov_ScS, cov_SS_inv), cov_ScS.T)
+    return conditional_means, conditional_cov
+        # return None, None
 
 ## Functions used for computing SHAP values given feature dependence.
 def get_S_complement(S, d):
