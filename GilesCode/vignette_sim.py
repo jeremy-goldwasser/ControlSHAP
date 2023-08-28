@@ -641,3 +641,9 @@ plt.hist([ss_rank_cors_indep,cv_rank_cors_indep])
 
 plt.hist([kshap_rank_cors_dep,wls_rank_cors_dep])
 plt.hist([kshap_rank_cors_indep,wls_rank_cors_indep])
+
+
+#%%
+
+# Finally a little simulation to check that increasing M doesn't change the variance reduction percentages 
+
