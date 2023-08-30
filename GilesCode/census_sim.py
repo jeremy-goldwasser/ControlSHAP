@@ -5,8 +5,9 @@
 
 
 import numpy as np
-import shap
-import pandas as pd
+#import shap
+import pickle
+#import pandas as pd
 from sklearn.linear_model import LogisticRegression
 from helper import *
 from helper2_dep import *
@@ -36,59 +37,68 @@ import matplotlib.pyplot as plt
 # In[4]:
 
 
-X, y = shap.datasets.adult()
-X_display, y_display = shap.datasets.adult(display=True)
-
-print(X.shape)
-X.head()
-X_display.head() # No NAs
-print(np.unique(y_display, return_counts=True))
-X_binarized = pd.get_dummies(X_display)
-print(X_binarized.shape)
+#X, y = shap.datasets.adult()
+#X_display, y_display = shap.datasets.adult(display=True)
 
 
-# Make dictionary whose keys are all the original columns, & whose values are lists of all (could just be 1) the columns in the binarized dataset with those features.
-# - This will be useful when we get around to fitting the SHAP values
-
-# In[5]:
-
-
-mapping_dict = {}
-for i, col in enumerate(X_display.columns):
-    bin_cols = []
-    for j, bin_col in enumerate(X_binarized.columns):
-        if bin_col.startswith(col):
-            bin_cols.append(j)
-    mapping_dict[i] = bin_cols
-# mapping_dict
-# print(np.sum(np.sum(X_train[:, 14:21], axis=1) != 1)) # Sanity check: It's right
+# X = np.load('../Data/census/censusX.npy')
+# X_display = pickle.load(open('../Data/census/censusXdisplay.p','rb'))
+# #X_binarized = np.load('../Data/census/censusXbin.npy')
+# y_display = np.load('../Data/census/censusydisplay.npy')
+# mapping_dict = pickle.load(open('../Data/census/censusmapping.p','rb'))
 
 
-# Rescale covariates to be between 0 and 1
 
-# In[6]:
-
-
-X_norm = (X_binarized-X_binarized.min())/(X_binarized.max()-X_binarized.min())
-y_int = y_display.astype("int8")
-
-# Split into training & test sets
+# print(X.shape)
+# #X.head()
+# X_display.head() # No NAs
+# print(np.unique(y_display, return_counts=True))
+# X_binarized = pd.get_dummies(X_display)
+# print(X_binarized.shape)
 
 
-# In[7]:
+# # Make dictionary whose keys are all the original columns, & whose values are lists of all (could just be 1) the columns in the binarized dataset with those features.
+# # - This will be useful when we get around to fitting the SHAP values
+
+# # In[5]:
 
 
-np.random.seed(1)
-n, d_bin = X_norm.shape
-n_train = round(n*0.75)
-train_idx = np.random.choice(n, size=n_train, replace=False)
-# X_train, y_train = X_norm.iloc[train_idx], y_int[train_idx]
-X_train_pd, y_train = X_norm.iloc[train_idx], y_int[train_idx]
-X_train = X_train_pd.to_numpy()
+# mapping_dict = {}
+# for i, col in enumerate(X_display.columns):
+#     bin_cols = []
+#     for j, bin_col in enumerate(X_binarized.columns):
+#         if bin_col.startswith(col):
+#             bin_cols.append(j)
+#     mapping_dict[i] = bin_cols
+# #mapping_dict
+# #print(np.sum(np.sum(X_train[:, 14:21], axis=1) != 1)) # Sanity check: It's right
 
-test_idx = np.setdiff1d(list(range(n)), train_idx)
-X_test_pd, y_test = X_norm.iloc[test_idx], y_int[test_idx]
-X_test = X_test_pd.to_numpy()
+
+# # Rescale covariates to be between 0 and 1
+
+# # In[6]:
+
+
+# X_norm = (X_binarized-X_binarized.min())/(X_binarized.max()-X_binarized.min())
+# y_int = y_display.astype("int8")
+
+# # Split into training & test sets
+
+
+# # In[7]:
+
+
+# np.random.seed(1)
+# n, d_bin = X_norm.shape
+# n_train = round(n*0.75)
+# train_idx = np.random.choice(n, size=n_train, replace=False)
+# # X_train, y_train = X_norm.iloc[train_idx], y_int[train_idx]
+# X_train_pd, y_train = X_norm.iloc[train_idx], y_int[train_idx]
+# X_train = X_train_pd.to_numpy()
+
+# test_idx = np.setdiff1d(list(range(n)), train_idx)
+# X_test_pd, y_test = X_norm.iloc[test_idx], y_int[test_idx]
+# X_test = X_test_pd.to_numpy()
 
 
 # #### Train logistic regression model
@@ -97,9 +107,18 @@ X_test = X_test_pd.to_numpy()
 
 # In[8]:
 
+X_train = np.load('../Data/census/X_train.npy')
+y_train = np.load('../Data/census/y_train.npy')
+
+X_test = np.load('../Data/census/X_test.npy')
+y_test = np.load('../Data/census/y_test.npy')
+
+mapping_dict = pickle.load(open('../Data/census/censusmapping.p','rb'))
 
 logreg = LogisticRegression(max_iter=1000).fit(X_train, y_train)
 print(round(np.mean(logreg.predict(X_test)==y_test)*100))
+
+d_bin = X_train.shape[1]
 
 
 # ### Recreate logreg model in numpy
@@ -295,7 +314,7 @@ for i in range(n_pts):
     hessian = logreg_hessian(model, xloci, BETA)
     
     shap_CV_true_indep = compute_true_shap_cv_indep(xloci, gradient, hessian, feature_means, cov2,mapping_dict=mapping_dict)
-    shap_CV_true_dep = linear_shap_vals(xloci, D_matrices, feature_means, gradient)
+    shap_CV_true_dep = linear_shap_vals(xloci, D_matrices, feature_means, gradient,mapping_dict=mapping_dict)
     
         
     sims_kshap_indep = []
@@ -305,38 +324,66 @@ for i in range(n_pts):
     for j in range(nsim_per_point):
         print([i,j])
         
-
-        independent_features=True
-        obj_kshap_indep = cv_kshap_compare(model, X_train, xloci,
-                            independent_features,
-                            gradient, hessian,
-                            shap_CV_true=shap_CV_true_indep,mapping_dict=mapping_dict,
-                            M=M, n_samples_per_perm=n_samples_per_perm, K = K, n_boot=n_boot)        
-        sims_kshap_indep.append(obj_kshap_indep)
-        
-        obj_ss_indep = cv_shapley_sampling(model, X_train, xloci, 
+        try: 
+            independent_features=True
+            obj_kshap_indep = cv_kshap_compare(model, X_train, xloci,
                                 independent_features,
-                                gradient, hessian, shap_CV_true=shap_CV_true_indep,
-                                mapping_dict=mapping_dict,
-                                M=M, n_samples_per_perm=n_samples_per_perm)
+                                gradient, hessian,
+                                shap_CV_true=shap_CV_true_indep,mapping_dict=mapping_dict,
+                                M=M, n_samples_per_perm=n_samples_per_perm, K = K, n_boot=n_boot) 
+        except:
+            print('kshap indep exception')
+            obj_kshap_indep = []
+            for _ in range(8):
+                obj_kshap_indep.append( np.repeat(float('nan'),len(shap_CV_true_indep)))
+            
+        sims_kshap_indep.append(obj_kshap_indep)
+            
+        try:
+            obj_ss_indep = cv_shapley_sampling(model, X_train, xloci, 
+                                    independent_features,
+                                    gradient, hessian, shap_CV_true=shap_CV_true_indep,
+                                    mapping_dict=mapping_dict,
+                                    M=M, n_samples_per_perm=n_samples_per_perm)
+        except:
+            print('ss indep exception')
+            obj_ss_indep = []
+            for _ in range(4):
+                obj_ss_indep.append( np.repeat(float('nan'),len(shap_CV_true_indep)))
+                        
         sims_ss_indep.append(obj_ss_indep)
-        
+            
         independent_features=False
-        obj_kshap_dep = cv_kshap_compare(model, X_train, xloci,
-                            independent_features,
-                            gradient,
-                            shap_CV_true=shap_CV_true_dep,
-                            M=M, n_samples_per_perm=n_samples_per_perm, cov_mat=cov2, 
-                            mapping_dict=mapping_dict,
-                            K = K, n_boot=n_boot)
+        try:
+            obj_kshap_dep = cv_kshap_compare(model, X_train, xloci,
+                                independent_features,
+                                gradient,
+                                shap_CV_true=shap_CV_true_dep,
+                                M=M, n_samples_per_perm=n_samples_per_perm, cov_mat=cov2, 
+                                mapping_dict=mapping_dict,
+                                K = K, n_boot=n_boot)
+        except:
+            print('kshap dep exception')
+            obj_kshap_dep = []
+            for _ in range(8):
+                obj_kshap_dep.append( np.repeat(float('nan'),len(shap_CV_true_dep)))
+                
         sims_kshap_dep.append(obj_kshap_dep)
         
-        obj_ss_dep = cv_shapley_sampling(model, X_train, xloci, 
-                                independent_features,
-                                gradient, shap_CV_true=shap_CV_true_dep,
-                                mapping_dict=mapping_dict,
-                                M=M, n_samples_per_perm=n_samples_per_perm, cov_mat=cov2)
+        try:
+            obj_ss_dep = cv_shapley_sampling(model, X_train, xloci, 
+                                    independent_features,
+                                    gradient, shap_CV_true=shap_CV_true_dep,
+                                    mapping_dict=mapping_dict,
+                                    M=M, n_samples_per_perm=n_samples_per_perm, cov_mat=cov2)
+        except:
+            print('ss dep exception')
+            obj_ss_dep = []
+            for _ in range(4):
+                obj_ss_dep.append( np.repeat(float('nan'),len(shap_CV_true_indep)))
+                
         sims_ss_dep.append(obj_ss_dep)
+       
 
     kshaps_indep.append(sims_kshap_indep)
     kshaps_dep.append(sims_kshap_dep)

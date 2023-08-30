@@ -132,7 +132,16 @@ hessian = modelf(xloc)
 feature_means = np.mean(X_train, axis=0)
 cov_mat = np.cov(X_train, rowvar=False)
 
-D_matrices = make_all_lundberg_matrices(10000, cov_mat) # Takes a while
+u, s, vh = np.linalg.svd(cov_mat, full_matrices=True)
+K = 10000
+s_max = s[0]
+min_acceptable = s_max/K
+s2 = np.copy(s)
+s2[s <= min_acceptable] = min_acceptable
+cov2 = np.matmul(u, np.matmul(np.diag(s2), vh))
+
+M_linear = 1000 # 10 seconds/1000 perms or so
+D_matrices = make_all_lundberg_matrices(M_linear, cov2)
 
 
 #%%
@@ -162,7 +171,7 @@ for i in range(n_pts):
     gradient = modelg(xloci).T
     hessian = modelH(xloci)
     
-    shap_CV_true_indep = compute_true_shap_cv_indep(xloci, gradient, hessian, feature_means, cov_mat)
+    shap_CV_true_indep = compute_true_shap_cv_indep(xloci, gradient, hessian, feature_means, cov2)
     shap_CV_true_dep = linear_shap_vals(xloci, D_matrices, feature_means, gradient)
     
         
@@ -173,35 +182,64 @@ for i in range(n_pts):
     for j in range(nsim_per_point):
         print([i,j])
         
-
         independent_features=True
-        obj_kshap_indep = cv_kshap_compare(modelf, X_train, xloci,
-                            independent_features,
-                            gradient, hessian,
-                            shap_CV_true=shap_CV_true_indep,
-                            M=M, n_samples_per_perm=n_samples_per_perm, K = K, n_boot=n_boot)        
-        sims_kshap_indep.append(obj_kshap_indep)
-        
-        obj_ss_indep = cv_shapley_sampling(modelf, X_train, xloci, 
+        try: 
+            obj_kshap_indep = cv_kshap_compare(modelf, X_train, xloci,
                                 independent_features,
-                                gradient, hessian, shap_CV_true=shap_CV_true_indep,
-                                M=np.floor_divide(M,10), n_samples_per_perm=n_samples_per_perm)
+                                gradient, hessian,
+                                shap_CV_true=shap_CV_true_indep,
+                                M=M, n_samples_per_perm=n_samples_per_perm, K = K, n_boot=n_boot) 
+        except:
+            print('kshap indep exception')
+            obj_kshap_indep = []
+            for _ in range(8):
+                obj_kshap_indep.append( np.repeat(float('nan'),len(shap_CV_true_indep)))
+            
+        sims_kshap_indep.append(obj_kshap_indep)
+            
+        try:
+            obj_ss_indep = cv_shapley_sampling(modelf, X_train, xloci, 
+                                    independent_features,
+                                    gradient, hessian, shap_CV_true=shap_CV_true_indep,
+                                    M=np.floor_divide(M,10), n_samples_per_perm=n_samples_per_perm)
+        except:
+            print('ss indep exception')
+            obj_ss_indep = []
+            for _ in range(4):
+                obj_ss_indep.append( np.repeat(float('nan'),len(shap_CV_true_indep)))
+                        
         sims_ss_indep.append(obj_ss_indep)
-        
+            
         independent_features=False
-        obj_kshap_dep = cv_kshap_compare(modelf, X_train, xloci,
-                            independent_features,
-                            gradient,
-                            shap_CV_true=shap_CV_true_dep,
-                            M=M, n_samples_per_perm=n_samples_per_perm, cov_mat=cov_mat, 
-                            K = K, n_boot=n_boot)
+        try:
+            obj_kshap_dep = cv_kshap_compare(modelf, X_train, xloci,
+                                independent_features,
+                                gradient,
+                                shap_CV_true=shap_CV_true_dep,
+                                M=M, n_samples_per_perm=n_samples_per_perm, cov_mat=cov2, 
+                                K = K, n_boot=n_boot)
+        except:
+            print('kshap dep exception')
+            obj_kshap_dep = []
+            for _ in range(8):
+                obj_kshap_dep.append( np.repeat(float('nan'),len(shap_CV_true_dep)))
+                
         sims_kshap_dep.append(obj_kshap_dep)
         
-        obj_ss_dep = cv_shapley_sampling(modelf, X_train, xloci, 
-                                independent_features,
-                                gradient, shap_CV_true=shap_CV_true_dep,
-                                M=np.floor_divide(M,10), n_samples_per_perm=n_samples_per_perm, cov_mat=cov_mat)
+        try:
+            obj_ss_dep = cv_shapley_sampling(modelf, X_train, xloci, 
+                                    independent_features,
+                                    gradient, shap_CV_true=shap_CV_true_dep,
+                                    M=np.floor_divide(M,10), n_samples_per_perm=n_samples_per_perm, cov_mat=cov2)
+        except:
+            print('ss dep exception')
+            obj_ss_dep = []
+            for _ in range(4):
+                obj_ss_dep.append( np.repeat(float('nan'),len(shap_CV_true_indep)))
+                
         sims_ss_dep.append(obj_ss_dep)
+       
+
 
     kshaps_indep.append(sims_kshap_indep)
     kshaps_dep.append(sims_kshap_dep)

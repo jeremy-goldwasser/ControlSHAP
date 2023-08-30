@@ -473,8 +473,8 @@ reducs_dep_50 = np.reshape(np.quantile(var_reducs_dep,0.50,axis=1).T,[2*d])
 reducs_dep_75 = np.reshape(np.quantile(var_reducs_dep,0.75,axis=1).T,[2*d])
 
 plt.errorbar(xpts,reducs_dep_50,yerr=np.array([reducs_dep_50-reducs_dep_25,reducs_dep_75-reducs_dep_50]),fmt='o')
-plt.ylim([0,1])
-
+plt.ylim([-0.25,1])
+plt.axhline(y=0,color='black')
 
 #%% Just a curiousity look at actual variances
 

@@ -17,6 +17,7 @@ import torch.nn as nn
 from torch.utils.data import TensorDataset, DataLoader, WeightedRandomSampler
 
 from sklearn.model_selection import train_test_split
+from sklearn.metrics import roc_auc_score
 import pandas as pd
 from os.path import join
 # import warnings
@@ -205,6 +206,29 @@ print("{}/{} predictions are for positive class; really {}"
     .format(n_positive_preds,n_test, np.sum(Y_test==1)))
 Y_preds = torch.argmax(outputs, axis=1)
 print("Balanced sampling. {}% accuracy".format(round(100*(np.sum(Y_test==Y_preds.numpy())/n_test))))
+
+
+print("AUC Score")
+print(roc_auc_score(Y_test,outputs[:,1]))
+
+print("Test log likelihood")
+np.sum( Y_test*np.log(np.array(outputs[:,1])))
+
+
+#%%  Let's look at logistic regression
+
+logreg = LogisticRegression(max_iter=1000).fit(X_train, Y_train)
+
+Y_pred = logreg.predict_proba(X_test)
+
+print(round(np.mean(np.argmax(Y_pred,axis=1)==Y_test)*100))
+
+print("AUC Score")
+print(roc_auc_score(Y_test,Y_pred[:,1]))
+
+print("Test log likelihood")
+np.sum( Y_test*np.log(np.array(Y_pred[:,1])))
+
 
 
 # ## Compute Gradient and Hessian of neural net w.r.t. input
