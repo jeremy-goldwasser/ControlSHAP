@@ -80,9 +80,9 @@ simstr = 'npt'+str(n_pts)+'nsim'+str(nsim_per_point)+'M'+str(M)+'npp'+str(n_samp
 np.random.seed(1)
 X_locs = np.random.multivariate_normal(FEATURE_MEANS, COV_MAT, size=n_pts)
 
-np.save('logistic_X.npy',X)
-np.save('logistic_xloci'+simstr+'.npy',X_locs)
-np.save('logistic_beta'+simstr+'.npy',BETA)
+np.save('newlogistic_X.npy',X)
+np.save('newlogistic_xloci.npy',X_locs)
+np.save('newlogistic_beta.npy',BETA)
 
 
 kshaps_indep = []
@@ -141,7 +141,7 @@ for i in range(n_pts):
     sss_indep.append(sims_ss_indep)
     sss_dep.append(sims_ss_dep)
 
-    np.save('logistic_kshap_indep_'+simstr+'.npy',kshaps_indep)
-    np.save('logistic_kshap_dep_'+simstr+'.npy',kshaps_dep)
-    np.save('logistic_ss_indep_'+simstr+'.npy',sss_indep)
-    np.save('logistic_ss_dep_'+simstr+'.npy',sss_dep)
+    np.save('newlogistic_kshap_indep.npy',kshaps_indep)
+    np.save('newlogistic_kshap_dep.npy',kshaps_dep)
+    np.save('newlogistic_ss_indep.npy',sss_indep)
+    np.save('newlogistic_ss_dep.npy',sss_dep)

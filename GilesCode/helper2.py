@@ -212,3 +212,41 @@ def get_mapping_dict(df_orig, X_df, X_train_raw, categorical_cols):
             multi_idx += 1
     return mapping_dict
 
+def difference_gradient(model,xloc,sds):
+    # calculates a "gradient" based on a 1-standard deviation
+    # difference calculation. Here we will use a symmetric
+    # difference with 0.5 sd either side. 
+    
+    grad = []
+    for i in range(xloc.shape[1]):
+        xlocu, xlocd = np.copy(xloc), np.copy(xloc)
+        if sds[i,0]==sds[i,1]:
+            xlocu[0,i] = xloc[0,i] + 0.5*sds[i,0]
+            xlocd[0,i] = xloc[0,i] - 0.5*sds[i,0]
+            grad.append( (model(xlocu)-model(xlocd))/sds[i,0])   
+        else:
+            xlocu[0,i] = sds[i,1]
+            xlocd[0,i] = sds[i,0]
+            grad.append( model(xlocu)-model(xlocd))
+                 
+    return np.array(grad)
+
+def difference_hessian(model,xloc,sds):
+    hess = []
+    for i in range(xloc.shape[1]):
+        xlocu, xlocd = np.copy(xloc), np.copy(xloc)
+        xlocu, xlocd = np.copy(xloc), np.copy(xloc)
+        if sds[i,0]==sds[i,1]:
+            xlocu[0,i] = xloc[0,i] + 0.5*sds[i,0]
+            xlocd[0,i] = xloc[0,i] - 0.5*sds[i,0]
+            grad = (difference_gradient(model,xlocu,sds) - difference_gradient(model,xlocd,sds))/sds[i,0]
+        else:
+            xlocu[0,i] = sds[i,1]
+            xlocd[0,i] = sds[i,0]
+            grad = difference_gradient(model,xlocu,sds) - difference_gradient(model,xlocd,sds)
+ 
+        
+        hess.append(grad)
+        
+    hess = np.array(hess).reshape(xloc.shape[1],xloc.shape[1])
+    return (hess + hess.T)/2
