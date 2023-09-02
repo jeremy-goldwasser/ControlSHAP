@@ -68,7 +68,7 @@ D_matrices = make_all_lundberg_matrices(10000, cov_mat) # Takes a while
 
 #%%
 
-n_pts = 20
+n_pts = 40
 nsim_per_point = 50
 M = 1000
 n_samples_per_perm = 10

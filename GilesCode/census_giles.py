@@ -143,7 +143,7 @@ params = {
     "boosting_type": "gbdt",
     "objective": "binary",
     "metric": "binary_logloss",
-    "num_leaves": 2,
+    "num_leaves": 8,
     "verbose": -1,
     "min_data": 100,
     "boost_from_average": True
@@ -179,7 +179,7 @@ feature_means = np.mean(X_train, axis=0)
 cov_mat = np.cov(X_train, rowvar=False)
 
 avg_CV_empirical = np.mean(f_second_order_approx(fmodel,X_train, xloc, gradient, hessian))
-pred = model(xloc)
+pred = fmodel(xloc)
 exp_CV_sum_empirical = pred - avg_CV_empirical
 shap_CV_true_indep = compute_true_shap_cv_indep(xloc, gradient, hessian, feature_means, cov_mat, mapping_dict=mapping_dict)
 sum_shap_CV_true = np.sum(shap_CV_true_indep)
@@ -195,7 +195,7 @@ print(exp_CV_sum_empirical) # Yes, they're extremely close
 
 np.random.seed(13)
 independent_features = True
-obj_ss = cv_shapley_sampling(model, X_train, xloc, 
+obj_ss = cv_shapley_sampling(fmodel, X_train, xloc, 
                         independent_features,
                         gradient, hessian,
                         mapping_dict=mapping_dict,
@@ -216,7 +216,7 @@ print(np.round(100*(corr_ests**2)[order])) # Variance reductions
 
 
 np.random.seed(1)
-obj_kshap = cv_kshap(model, X_train, xloc, 
+obj_kshap = cv_kshap(fmodel, X_train, xloc, 
             independent_features,
             gradient, hessian,
             mapping_dict=mapping_dict,

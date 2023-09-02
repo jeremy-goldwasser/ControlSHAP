@@ -8,6 +8,8 @@ kshaps_dep = np.load(fname+'_kshap_dep.npy')
 sss_dep = np.load(fname+'_ss_dep.npy')
 
 
+n_pts, n_sim_per_point, h, d = kshaps_indep.shape
+
 
 #%%
 
@@ -35,9 +37,6 @@ reducs_indep_25 = np.reshape(np.quantile(var_reducs_indep,0.25,axis=1).T,[2*d])
 reducs_indep_50 = np.reshape(np.quantile(var_reducs_indep,0.50,axis=1).T,[2*d])
 reducs_indep_75 = np.reshape(np.quantile(var_reducs_indep,0.75,axis=1).T,[2*d])
 
-xpts = np.repeat( np.arange(0,d), 2) + np.tile(np.array([-0.1,0.1]),d)
-plt.errorbar(xpts,reducs_indep_50,yerr=np.array([reducs_indep_50-reducs_indep_25,reducs_indep_75-reducs_indep_50]),fmt='o')
-plt.ylim([-1,1])
 
 
 var_reducs_dep = 1-np.array([[vars_ss_dep[i][0]/vars_ss_dep[i][1] for i in range(n_pts)],
@@ -49,6 +48,9 @@ reducs_dep_25 = np.reshape(np.quantile(var_reducs_dep,0.25,axis=1).T,[2*d])
 reducs_dep_50 = np.reshape(np.quantile(var_reducs_dep,0.50,axis=1).T,[2*d])
 reducs_dep_75 = np.reshape(np.quantile(var_reducs_dep,0.75,axis=1).T,[2*d])
 
+xpts = np.repeat( np.arange(0,d), 2) + np.tile(np.array([-0.1,0.1]),d)
+
+fig1 = plt.errorbar(xpts,reducs_indep_50,yerr=np.array([reducs_indep_50-reducs_indep_25,reducs_indep_75-reducs_indep_50]),fmt='o')
 plt.errorbar(xpts,reducs_dep_50,yerr=np.array([reducs_dep_50-reducs_dep_25,reducs_dep_75-reducs_dep_50]),fmt='o')
 plt.ylim([-0.25,1])
 plt.axhline(y=0,color='black')
@@ -113,10 +115,8 @@ for i in range(n_pts):
     rankmat = np.array([rankdata(kshaps_dep[i][j][6]) for j in range(nsim_per_point)])
     wls_rank_cors_dep.append(np.sum(np.abs(rankmat[:,None,:]-rankmat[None,:,:]))/n_pts**2)
 
-
-plt.hist([ss_rank_cors_dep,cv_rank_cors_dep])
-plt.hist([ss_rank_cors_indep,cv_rank_cors_indep])
-
-
-plt.hist([kshap_rank_cors_dep,wls_rank_cors_dep])
-plt.hist([kshap_rank_cors_indep,wls_rank_cors_indep])
+fig2, ((ax1,ax2),(ax3,ax4)) = plt.subplots(nrows=2,ncols=2)
+ax1.hist([ss_rank_cors_dep,cv_rank_cors_dep])
+ax2.hist([ss_rank_cors_indep,cv_rank_cors_indep])
+ax3.hist([kshap_rank_cors_dep,wls_rank_cors_dep])
+ax4.hist([kshap_rank_cors_indep,wls_rank_cors_indep])

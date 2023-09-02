@@ -647,3 +647,127 @@ plt.hist([kshap_rank_cors_indep,wls_rank_cors_indep])
 
 # Finally a little simulation to check that increasing M doesn't change the variance reduction percentages 
 
+
+n_pts = 5
+nsim_per_point = 50
+Ms = [100,500,1000,5000,10000]
+n_samples_per_perm = 10
+K = 50
+n_boot = 100
+
+np.random.seed(1)
+X_locs = np.random.multivariate_normal(FEATURE_MEANS, COV_MAT, size=n_pts)
+
+
+
+
+kshaps_indep = []
+kshaps_dep = []
+sss_indep = []
+sss_dep = []
+
+for i in range(n_pts):
+    xloci = X_locs[i].reshape((1,d))
+    gradient = logreg_gradient(model, xloci, BETA)
+    hessian = logreg_hessian(model, xloci, BETA)
+    
+    shap_CV_true_indep = compute_true_shap_cv_indep(xloci, gradient, hessian, feature_means, cov_mat)
+    shap_CV_true_dep = linear_shap_vals(xloci, D_matrices, feature_means, gradient)
+    
+        
+    sims_kshap_indep = []
+    sims_kshap_dep = []
+    sims_ss_indep = []
+    sims_ss_dep = []
+    for j in range(nsim_per_point):
+        
+        sims_kshap_indepj = []
+        sims_kshap_depj = []
+        sims_ss_indepj = []
+        sims_ss_depj = []
+        
+        for k in range(len(Ms)):
+            print([i,j,k])
+            
+    
+            independent_features=True
+            obj_kshap_indep = cv_kshap_compare(model, X, xloci,
+                                independent_features,
+                                gradient, hessian,
+                                shap_CV_true=shap_CV_true_indep,
+                                M=Ms[k], n_samples_per_perm=n_samples_per_perm, K = K, n_boot=n_boot)        
+            sims_kshap_indepj.append(obj_kshap_indep)
+            
+            obj_ss_indep = cv_shapley_sampling(model, X, xloci, 
+                                    independent_features,
+                                    gradient, hessian, shap_CV_true=shap_CV_true_indep,
+                                    M=Ms[k], n_samples_per_perm=n_samples_per_perm)
+            sims_ss_indepj.append(obj_ss_indep)
+            
+            independent_features=False
+            obj_kshap_dep = cv_kshap_compare(model, X, xloci,
+                                independent_features,
+                                gradient,
+                                shap_CV_true=shap_CV_true_dep,
+                                M=Ms[k], n_samples_per_perm=n_samples_per_perm, cov_mat=COV_MAT, 
+                                K = K, n_boot=n_boot)
+            sims_kshap_depj.append(obj_kshap_dep)
+            
+            obj_ss_dep = cv_shapley_sampling(model, X, xloci, 
+                                    independent_features,
+                                    gradient, shap_CV_true=shap_CV_true_dep,
+                                    M=Ms[k], n_samples_per_perm=n_samples_per_perm, cov_mat=COV_MAT)
+            sims_ss_depj.append(obj_ss_dep)
+            
+        sims_kshap_indep.append(sims_kshap_indepj)
+        sims_kshap_dep.append(sims_kshap_depj)
+        sims_ss_indep.append(sims_ss_indepj)
+        sims_ss_dep.append(sims_ss_depj)            
+
+    kshaps_indep.append(sims_kshap_indep)
+    kshaps_dep.append(sims_kshap_dep)
+    sss_indep.append(sims_ss_indep)
+    sss_dep.append(sims_ss_dep)
+
+    np.save('kshap_indep_msim.npy',kshaps_indep)
+    np.save('kshap_dep_msim.npy',kshaps_dep)
+    np.save('ss_indep_msim.npy',sss_indep)
+    np.save('ss_dep_msim.npy',sss_dep)
+
+
+#%%
+
+means_kshap_dep = np.mean(kshaps_dep,axis=1)
+means_kshap_indep = np.mean(kshaps_indep,axis=1)
+vars_kshap_dep = np.var(kshaps_dep,axis=1)
+vars_kshap_indep = np.var(kshaps_indep,axis=1)
+
+means_ss_dep = np.mean(sss_dep,axis=1)
+means_ss_indep = np.mean(sss_indep,axis=1)
+vars_ss_dep = np.var(sss_dep,axis=1)
+vars_ss_indep = np.var(sss_indep,axis=1)
+
+
+ss_indep_varreducs = 1-vars_ss_indep[:,:,0,:]/vars_ss_indep[:,:,1,:]
+ss_dep_varreducs = 1-vars_ss_dep[:,:,0,:]/vars_ss_dep[:,:,1,:]
+kshap_indep_varreducs = 1-vars_kshap_indep[:,:,0,:]/vars_kshap_indep[:,:,6,:]
+kshap_dep_varreducs = 1-vars_kshap_dep[:,:,0,:]/vars_kshap_dep[:,:,6,:]
+
+cols = ('b','r')
+
+for i in range(2):
+    for j in range(10):
+        plt.plot(ss_indep_varreducs[i,:,j],color=cols[i])
+        
+for i in range(2):
+    for j in range(10):
+        plt.plot(ss_dep_varreducs[i,:,j],color=cols[i])
+
+
+for i in range(2):
+    for j in range(10):
+        plt.plot(kshap_indep_varreducs[i,:,j],color=cols[i])
+        
+for i in range(2):
+    for j in range(10):
+        plt.plot(kshap_dep_varreducs[i,:,j],color=cols[i])
