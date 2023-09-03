@@ -1,6 +1,8 @@
 from scipy.stats import rankdata
+import numpy as np
+import matplotlib.pyplot as plt
 
-fname = 'newlogistic'
+fname = 'bank_logit'
 
 kshaps_indep = np.load(fname+'_kshap_indep.npy')
 sss_indep = np.load(fname+'_ss_indep.npy')
@@ -8,7 +10,7 @@ kshaps_dep = np.load(fname+'_kshap_dep.npy')
 sss_dep = np.load(fname+'_ss_dep.npy')
 
 
-n_pts, n_sim_per_point, h, d = kshaps_indep.shape
+n_pts, nsim_per_point, h, d = kshaps_indep.shape
 
 
 #%%
