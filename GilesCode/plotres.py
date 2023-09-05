@@ -2,7 +2,7 @@ from scipy.stats import rankdata
 import numpy as np
 import matplotlib.pyplot as plt
 
-fname = 'bank_logit'
+fname = 'brca_logit'
 
 kshaps_indep = np.load(fname+'_kshap_indep.npy')
 sss_indep = np.load(fname+'_ss_indep.npy')
