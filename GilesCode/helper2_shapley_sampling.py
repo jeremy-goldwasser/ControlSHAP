@@ -86,8 +86,6 @@ def query_values_conditional(X, xloc, S, j,
             
         # Replace xloc's "unknown" features - if any - with those of random sample
         z_x_s, z_x_s_j = np.copy(xloc), np.copy(xloc)
-        # print(Sc)
-        # print(z_Sc)
         z_x_s[0][Sc] = z_Sc[0]
         if n_known_features_Sj < d:
             z_x_s_j[0][Sjc] = z_Sjc[0]
@@ -216,13 +214,10 @@ def cv_shapley_sampling_j(f_model, X, xloc, j,
             # Check for convergence - when estimated SHAP values aren't so variable relative to their magnitudes
             final_shap_est, vanilla_shap_model, vanilla_shap_CV, corr = compute_cv_shap(diffs_model, diffs_approx, shap_CV_true)
             
-            
-            # print("here")
             if corr < 1: # Sometimes it's greater (rounding error?)
                 var_vshap_model = np.var(diffs_model) / count
                 var_final_shap = (1 - corr**2)*var_vshap_model
                 prop_std = np.sqrt(var_final_shap) / np.abs(final_shap_est)
-                # print(prop_std)
                 if prop_std < t:
                     converged = True
                     if verbose:
