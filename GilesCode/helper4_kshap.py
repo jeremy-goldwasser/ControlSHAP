@@ -688,7 +688,7 @@ def final_cv_kshap(vanilla_kshap_model, vanilla_kshap_CV, shap_CV_true,
         corrs = np.zeros(d)
         for j in range(d):
             # Compute and save our method's kernelSHAP estimate
-            alpha_j = kshap_covs[j]/kshap_vars_CV[j]
+            alpha_j = kshap_covs[j]/kshap_vars_CV[j]#**(0.95**2)
             final_kshap_ests[j] = vanilla_kshap_model[j] - alpha_j*(vanilla_kshap_CV[j] - shap_CV_true[j])
             # auxiliary
             corrs[j] = kshap_covs[j] / np.sqrt(kshap_vars_model[j] * kshap_vars_CV[j])

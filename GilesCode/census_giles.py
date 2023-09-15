@@ -178,7 +178,7 @@ hessian = difference_hessian(fmodel,xloc,sds)
 feature_means = np.mean(X_train, axis=0)
 cov_mat = np.cov(X_train, rowvar=False)
 
-avg_CV_empirical = np.mean(f_second_order_approx(fmodel,X_train, xloc, gradient, hessian))
+avg_CV_empirical = np.mean(f_second_order_approx(fmodel(xloc),X_train, xloc, gradient, hessian))
 pred = fmodel(xloc)
 exp_CV_sum_empirical = pred - avg_CV_empirical
 shap_CV_true_indep = compute_true_shap_cv_indep(xloc, gradient, hessian, feature_means, cov_mat, mapping_dict=mapping_dict)
@@ -287,7 +287,7 @@ print(np.round(100*(corr_ests**2)[order])) # Variance reductions
 # In[31]:
 
 
-get_ipython().run_line_magic('run', 'helper_dep')
+# get_ipython().run_line_magic('run', 'helper_dep')
 np.random.seed(1)
 independent_features = False
 shap_CV_true_dep = linear_shap_vals(xloc, D_matrices, feature_means, gradient)
