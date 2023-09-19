@@ -175,7 +175,7 @@ def model(x):
     return neural_net(x).detach().numpy()
 
 def gradfn(model,x,sds):
-    xloc_torch = torch.tensor(xloc, dtype=torch.float32).requires_grad_(True)
+    xloc_torch = torch.tensor(x, dtype=torch.float32).requires_grad_(True)
     y_pred = net(xloc_torch)[0,1]
     y_pred.backward()
     gradient = xloc_torch.grad.detach().numpy().reshape((d, 1))

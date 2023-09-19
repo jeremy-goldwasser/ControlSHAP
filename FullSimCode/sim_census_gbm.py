@@ -4,6 +4,7 @@ import shap
 import pandas as pd
 from sklearn.linear_model import LogisticRegression
 import sys
+import pickle
 
 from helper2 import *
 from helper2_dep import *
@@ -30,33 +31,13 @@ n_boot=100
 
 fname = 'census_gbm'
 
-X, y = shap.datasets.adult()
-X_display, y_display = shap.datasets.adult(display=True)
-X_binarized = pd.get_dummies(X_display)
+X_train = np.load('../Data/census/X_train.npy')
+y_train = np.load('../Data/census/y_train.npy')
 
-mapping_dict = {}
-for i, col in enumerate(X_display.columns):
-    bin_cols = []
-    for j, bin_col in enumerate(X_binarized.columns):
-        if bin_col.startswith(col):
-            bin_cols.append(j)
-    mapping_dict[i] = bin_cols
+X_test = np.load('../Data/census/X_test.npy')
+y_test = np.load('../Data/census/y_test.npy')
 
-X_norm = (X_binarized-X_binarized.min())/(X_binarized.max()-X_binarized.min())
-y_int = y_display.astype("int8")
-
-# Split into training and test sets
-np.random.seed(1)
-n, d = X_norm.shape
-n_train = round(n*0.75)
-train_idx = np.random.choice(n, size=n_train, replace=False)
-X_train_pd, y_train = X_norm.iloc[train_idx], y_int[train_idx]
-X_train = X_train_pd.to_numpy()
-
-test_idx = np.setdiff1d(list(range(n)), train_idx)
-X_test_pd, y_test = X_norm.iloc[test_idx], y_int[test_idx]
-X_test = X_test_pd.to_numpy()
-
+mapping_dict = pickle.load(open('../Data/census/censusmapping.p','rb'))
 
 
 #%% Calculate Summaries

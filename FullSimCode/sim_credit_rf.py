@@ -4,6 +4,7 @@ import shap
 import pandas as pd
 from sklearn.linear_model import LogisticRegression
 import sys
+import pickle
 
 from helper2 import *
 from helper2_dep import *
@@ -30,38 +31,14 @@ n_boot=100
 
 fname = 'credit_rf'
 
-import sage
-df = sage.datasets.credit()
-# Property, other installment, housing, job, status of checking act, credit history, purpose, savings, employment since, marital status, old debtors
-n = df.shape[0]
-X_df = df.drop(["Good Customer"], axis=1)
-y = df["Good Customer"]
+X_train = np.load('../Data/credit/X_train.npy')
+y_train = np.load('../Data/credit/y_train.npy')
 
-categorical_columns = [
-    'Checking Status', 'Credit History', 'Purpose', #'Credit Amount', # It's listed but has 923 unique values
-    'Savings Account/Bonds', 'Employment Since', 'Personal Status',
-    'Debtors/Guarantors', 'Property Type', 'Other Installment Plans',
-    'Housing Ownership', 'Job', #'Telephone', 'Foreign Worker' # These are just binary
-]
-X_binarized = pd.get_dummies(X_df, columns=categorical_columns)
-d_bin = X_binarized.shape[1]
+X_test = np.load('../Data/credit/X_test.npy')
+y_test = np.load('../Data/credit/y_test.npy')
 
-mapping_dict = {}
-for i, col in enumerate(X_df.columns):
-    bin_cols = []
-    for j, bin_col in enumerate(X_binarized.columns):
-        if bin_col.startswith(col):
-            bin_cols.append(j)
-    mapping_dict[i] = bin_cols
+mapping_dict = pickle.load(open('../Data/credit/creditmapping.p','rb'))
 
-np.random.seed(1)
-X_norm = (X_binarized-X_binarized.min())/(X_binarized.max()-X_binarized.min())
-n_train = round(n*0.8)
-train_idx = np.random.choice(n, n_train, replace=False)
-X_train, y_train = X_norm.iloc[train_idx].to_numpy(), y.iloc[train_idx].to_numpy()
-test_idx = np.setdiff1d(np.arange(n),train_idx)
-X_test, y_test = X_norm.iloc[test_idx].to_numpy(), y.iloc[test_idx].to_numpy()
-d = X_train.shape[1] # dimension of binarized data
 
 
 
