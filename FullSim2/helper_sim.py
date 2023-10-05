@@ -18,13 +18,14 @@ from helper2_shapley_sampling import *
 from helper4_kshap import *
 
 def fullsim(fname,X_locs,X,model,gradfn,hessfn,D_matrices,mapping_dict=[],sds=[],
-            nsim_per_point=50,M=1000,n_samples_per_perm=10,K=50, n_boot=100):
+            nsim_per_point=50,M=1000,n_samples_per_perm=10,K=50, n_boot=100, cov_mat=None):
     
     n_pts = X_locs.shape[0]
     d = X.shape[1]
     
     feature_means = np.mean(X, axis=0)
-    cov_mat = np.cov(X, rowvar=False)
+    if cov_mat is None:
+        cov_mat = np.cov(X, rowvar=False)
     
     kshaps_indep = []
     kshaps_dep = []
@@ -75,7 +76,7 @@ def fullsim(fname,X_locs,X,model,gradfn,hessfn,D_matrices,mapping_dict=[],sds=[]
                      obj_ss_indep.append( np.repeat(float('nan'),len(shap_CV_true_indep)))
                      
             sims_ss_indep.append(obj_ss_indep)
-            
+            print("dep")
             independent_features=False
             try:
                 obj_kshap_dep = cv_kshap_compare(model, X, xloci,
@@ -92,7 +93,7 @@ def fullsim(fname,X_locs,X,model,gradfn,hessfn,D_matrices,mapping_dict=[],sds=[]
                     obj_kshap_dep.append( np.repeat(float('nan'),len(shap_CV_true_dep)))
                     
             sims_kshap_dep.append(obj_kshap_dep)
-            
+            print('here')
             try:
                 obj_ss_dep = cv_shapley_sampling(model, X, xloci, 
                                         independent_features,

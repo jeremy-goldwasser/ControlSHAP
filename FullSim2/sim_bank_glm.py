@@ -71,3 +71,4 @@ X_locs = X_test[np.random.choice(X_test.shape[0],n_pts,replace=False)]
 
 fullsim(fname,X_locs,X_train,model,gradfn,hessfn,D_matrices,mapping_dict=mapping_dict,sds=sds,
             nsim_per_point=nsim_per_point,M=M,n_samples_per_perm=n_samples_per_perm,K=K, n_boot=n_boot)
+# %%
