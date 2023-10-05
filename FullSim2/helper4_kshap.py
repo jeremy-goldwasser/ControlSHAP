@@ -610,13 +610,18 @@ def compute_kshap_vars_grouped(kshap_ests_grouped, K=50):
 
 def compute_kshap_vars_wls(var_values, coalitions, subset_size_distr):
     M = coalitions.shape[0]
+    d = coalitions.shape[1]
     #   mean_subset_values = np.matmul(coalitions, kshap_ests) + avg_pred
     #   var_values = np.mean((coalition_values - mean_subset_values)**2) * np.identity(M) 
     var_values = np.diagflat(var_values)
     counts = np.sum(coalitions, axis=1).astype(int).tolist()
     #W = np.diagflat([subset_size_distr[counts[i]] for i in range(M)])
     W = np.diagflat(np.repeat(1,M))
-    inv_ZTW = np.linalg.inv(coalitions.T @ W @ coalitions) @ coalitions.T @ W
+    ones_vec = np.ones(d).reshape((d, 1))
+    A_inv = np.linalg.inv(coalitions.T @ W @ coalitions)
+    C = np.diag(np.ones(d)) - np.outer(ones_vec,ones_vec) @ A_inv/np.matmul(np.matmul(ones_vec.T, A_inv), ones_vec)
+
+    inv_ZTW = A_inv @ C @ coalitions.T @ W
 
     kshap_vars_CV_wls = np.diagonal(inv_ZTW @ var_values @ inv_ZTW.T)
     return kshap_vars_CV_wls
@@ -669,16 +674,16 @@ def compute_kshap_covs_grouped(kshap_model_grouped, kshap_CV_grouped, K):
     kshap_covs_grouped = [(K/M) * np.cov(kshap_CV_grouped[:,j], kshap_model_grouped[:,j])[0,1] for j in range(d)]
     return kshap_covs_grouped
 
-def compute_kshap_covs_wls(coalitions, coalition_values_model, coalition_values_CV, subset_size_distr):
-    M = coalition_values_model.shape[0]
-    cov_values = np.cov(coalition_values_model, coalition_values_CV)[0,1] * np.identity(M)
-    # W = np.diag(subset_size_distr[np.sum(coalitions, axis=0)])
-    counts = np.sum(coalitions, axis=1).astype(int).tolist()
-    #W = np.diagflat([subset_size_distr[counts[i]] for i in range(M)])
-    W = np.diagflat(np.repeat(1,M))
-    inv_ZTW = np.linalg.inv(coalitions.T @ W @ coalitions) @ coalitions.T @ W
-    kshap_covs_CV_wls = np.diagonal(inv_ZTW @ cov_values @ inv_ZTW.T)
-    return kshap_covs_CV_wls
+# def compute_kshap_covs_wls(coalitions, coalition_values_model, coalition_values_CV, subset_size_distr):
+#     M = coalition_values_model.shape[0]
+#     cov_values = np.cov(coalition_values_model, coalition_values_CV)[0,1] * np.identity(M)
+#     # W = np.diag(subset_size_distr[np.sum(coalitions, axis=0)])
+#     counts = np.sum(coalitions, axis=1).astype(int).tolist()
+#     #W = np.diagflat([subset_size_distr[counts[i]] for i in range(M)])
+#     W = np.diagflat(np.repeat(1,M))
+#     inv_ZTW = np.linalg.inv(coalitions.T @ W @ coalitions) @ coalitions.T @ W
+#     kshap_covs_CV_wls = np.diagonal(inv_ZTW @ cov_values @ inv_ZTW.T)
+#     return kshap_covs_CV_wls
 
 
 def final_cv_kshap(vanilla_kshap_model, vanilla_kshap_CV, shap_CV_true,

@@ -245,14 +245,24 @@ def fitmodgradhess(mod,X_train,y_train,X_test,y_test):
         def hessfn(model,xloc,sds):
             return difference_hessian(model,xloc,sds)
 
+
         d = X_train.shape[1]
+        feature_means = np.mean(X_train, axis=0)
+        xloc = X_test[0].reshape((1,d))
+        cov_mat = np.cov(X_train, rowvar=False)            
+        cov_mat = correct_cov(cov_mat,Kr=10000)
+
         sds = []
         for i in range(d):
             uu = np.unique(X_train[:,i])
             if len(uu) == 2:
                 sds.append(uu)
             else:
-                sds.append(np.repeat(np.std(X_train[:,i]),2))
+                mi = np.delete(np.arange(d),i)
+                cm,ccov = compute_cond_mean_and_cov(xloc,mi,feature_means,cov_mat)
+                sds.append(np.repeat(np.sqrt(ccov),2))
+        
+                #sds.append(np.repeat(np.std(X_train[:,i]),2))
         sds = np.array(sds)
     
     elif mod == "glm":
