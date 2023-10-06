@@ -618,7 +618,19 @@ def compute_kshap_vars_wls(var_values, coalitions, subset_size_distr):
     #W = np.diagflat([subset_size_distr[counts[i]] for i in range(M)])
     W = np.diagflat(np.repeat(1,M))
     ones_vec = np.ones(d).reshape((d, 1))
-    A_inv = np.linalg.inv(coalitions.T @ W @ coalitions)
+    A = coalitions.T @ W @ coalitions
+    try:
+        A_inv = np.linalg.inv(A)
+    except:
+        new_cond_num = 10000
+        u, s, vh = np.linalg.svd(A)
+        min_acceptable = s[0]/new_cond_num
+        s2 = np.copy(s)
+        s2[s <= min_acceptable] = min_acceptable
+        A2 = np.matmul(u, np.matmul(np.diag(s2), vh))
+
+        A_inv = np.linalg.inv(A2)
+    
     C = np.diag(np.ones(d)) - np.outer(ones_vec,ones_vec) @ A_inv/np.matmul(np.matmul(ones_vec.T, A_inv), ones_vec)
 
     inv_ZTW = A_inv @ C @ coalitions.T @ W
