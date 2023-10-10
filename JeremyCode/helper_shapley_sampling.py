@@ -99,6 +99,24 @@ def chg_in_value_conditional(f_model, X, xloc, gradient, S, j,
     return chg_val_model, chg_val_approx
 
 
+def compute_vars(diffs_model, diffs_approx):
+    '''
+    Compute CV-based SHAP values for j'th feature, given changes in value function from M perms.
+    '''
+    M = len(diffs_approx)
+    var_vshap_CV = np.var(diffs_approx) / M
+    var_vshap_model = np.var(diffs_model) / M
+    if var_vshap_CV > 0 and var_vshap_model > 0:
+        # Get final estimate of the Shapley value
+        cov_shap_vals = np.cov(diffs_approx, diffs_model)[0,1] / M
+        corr = cov_shap_vals / np.sqrt(var_vshap_CV * var_vshap_model)
+        corr = min(corr, 0.995)
+        var_CV_model = (1-corr**2)*var_vshap_model
+        return var_vshap_model, var_CV_model
+    else:
+        return np.nan, np.nan
+
+
 def compute_cv_shap(diffs_model, diffs_approx, shap_CV_true):
     '''
     Compute CV-based SHAP values for j'th feature, given changes in value function from M perms.
@@ -132,7 +150,8 @@ def cv_shapley_sampling_j(f_model, X, xloc, j,
                         n_samples_per_perm=10, 
                         paired=True,
                         cov_mat=None,
-                        verbose=False):
+                        verbose=False,
+                        return_vars=False):
 
     '''
     Estimate SHAP value for j'th feature using our CV-based method. Main description in cv_shapley_sampling().
@@ -142,6 +161,7 @@ def cv_shapley_sampling_j(f_model, X, xloc, j,
     if cov_mat is None:
         cov_mat = np.cov(X, rowvar=False)    
     diffs_model, diffs_approx = [], []
+    vars_vanilla_model, vars_CV_model = [], []
     count = 0
     converged = False
     while not converged:
@@ -169,6 +189,10 @@ def cv_shapley_sampling_j(f_model, X, xloc, j,
                 continue
         diffs_model.append(chg_in_value_model)
         diffs_approx.append(chg_in_value_approx)
+        if return_vars:
+            var_vshap_model, var_CV_model = compute_vars(diffs_model, diffs_approx)
+            vars_vanilla_model.append(var_vshap_model)
+            vars_CV_model.append(var_CV_model)
         count += 1
         if M is not None:
             if count==M:
@@ -189,6 +213,9 @@ def cv_shapley_sampling_j(f_model, X, xloc, j,
                         print("Converged with {} samples.".format(count))
 
     final_shap_est = final_shap_est.item()
+    if return_vars:
+        return final_shap_est, vanilla_shap_model, vanilla_shap_CV, corr, np.array([vars_vanilla_model, vars_CV_model])
+
     return final_shap_est, vanilla_shap_model, vanilla_shap_CV, corr
 
 
