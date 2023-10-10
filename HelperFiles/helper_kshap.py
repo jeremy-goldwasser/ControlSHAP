@@ -1,9 +1,9 @@
 import numpy as np
 import statsmodels.regression.linear_model as lm
 import sys
-from helper2 import *
-from helper2_indep import *
-from helper2_dep import *
+from helper import *
+from helper_indep import *
+from helper_dep import *
 from math import comb
 
 
@@ -98,7 +98,7 @@ def cv_kshap(f_model, X, xloc,
             Each value is a list of indices reflecting which columns in X correspond to that index's feature.
     - cov_mat: Covariance matrix. If none, we compute naive way; risks poor conditioning.
     - var_method: Which method to use to estimate variance and covariance of SHAP estimates.
-            Must be 'boot', 'grouped', or 'wls'. 'boot' or 'wls' recommended.
+            Must be 'boot', 'grouped', or 'ls'. 'boot' or 'ls' recommended.
     - n_boot: Number of samples for bootstrapping. Used if var_method is 'boot'.
     - K: Size of each group for computing SHAP estimates. Used if var_method is 'grouped'.
     - D_matrices: Matrices used to compute true SHAP value of control variate in dependent features case.
@@ -121,7 +121,6 @@ def cv_kshap(f_model, X, xloc,
 
     converged = False
     count = 0
-    # n, d = X.shape
     d = len(mapping_dict) if mapping_dict is not None else X.shape[1]
     avg_pred_model, avg_pred_CV = compute_avg_preds(f_model, X, xloc, independent_features, gradient, hessian)
 
@@ -172,18 +171,9 @@ def cv_kshap(f_model, X, xloc,
         coalitions = np.append(coalitions, z).reshape((count, d))        
         Z_vals.append(z_x_vals)
 
-        
-        #coalition_values_model = np.append(coalition_values_model, value_z_model)
-        #coalition_values_CV = np.append(coalition_values_CV, value_z_CV)
-        #coalition_vars_model = np.append(coalition_vars_model, z_cov[0,0])
-        #coalition_vars_CV = np.append(coalition_vars_CV, z_cov[1,1])
-        #coalition_covs = np.append(coalition_covs,z_cov[0,1])
-        # Append new coalition vector (feature-dim if mapped)
-
-
         if M is not None:
             if count==M:
-             
+                # Compute all conditional means, variances, and covariances
                 coalition_values_model, coalition_values_CV, coalition_vars_model, coalition_vars_CV, coalition_covs = conditional_means_vars_kshap(f_model,Z_vals,xloc,
                                                    independent_features,
                                                    gradient,hessian,
@@ -200,56 +190,50 @@ def cv_kshap(f_model, X, xloc,
                                                                     coalitions, coalition_values_model, 
                                                                     coalition_values_CV,
                                                                     vanilla_kshap_model, vanilla_kshap_CV,
-                                                                    var_method, n_boot,  K, subset_size_distr,
+                                                                    var_method, n_boot,  K, 
                                                                     coalition_vars_model, coalition_vars_CV,coalition_covs)
                 # Compute CV-based KernelSHAP estimate
                 final_kshap_ests, corrs = final_cv_kshap(vanilla_kshap_model, vanilla_kshap_CV, shap_CV_true,
                                 kshap_covs, kshap_vars_model, kshap_vars_CV)
                 converged = True
         elif count % n_intermediate == 0:
-            #try:
-                
-                coalition_values_model_t, coalition_values_CV_t, coalition_vars_model_t, coalition_vars_CV_t, coalition_covs_t = conditional_means_vars_kshap(f_model,Z_vals,xloc,
-                                                   independent_features,
-                                                   gradient,hessian,
-                                                   n_intermediate,n_samples_per_perm)
-                
-                coalition_values_model = np.concatenate((coalition_values_model,coalition_values_model_t))
-                coalition_values_CV = np.concatenate((coalition_values_CV,coalition_values_CV_t))
-                coalition_vars_model = np.concatenate((coalition_vars_model,coalition_vars_model_t))
-                coalition_vars_CV = np.concatenate((coalition_vars_CV,coalition_vars_CV_t))
-                coalition_covs = np.concatenate((coalition_covs,coalition_covs_t))
-                
-                Z_vals = []
+            coalition_values_model_t, coalition_values_CV_t, coalition_vars_model_t, coalition_vars_CV_t, coalition_covs_t = conditional_means_vars_kshap(f_model,Z_vals,xloc,
+                                                independent_features,
+                                                gradient,hessian,
+                                                n_intermediate,n_samples_per_perm)
             
-                
-                # Compute vanilla SHAP values for model & approximation
-                vanilla_kshap_model = kshap_equation(f_model, xloc, coalitions, coalition_values_model, avg_pred_model)
-                vanilla_kshap_CV = kshap_equation(f_model, xloc, coalitions, coalition_values_CV, avg_pred_CV)
-                
-
-                # Compute variance & covariance of these SHAP estimates. 
-                # wls variance method doesn't work & grouped method only works when count is large, so bootstrapping.
-                n_boot_ = min(count, n_boot)
-                kshap_model, kshap_CV = boot_cv_kshap(f_model, xloc, avg_pred_model, avg_pred_CV, coalitions, coalition_values_model, coalition_values_CV, n_boot_)
-                kshap_vars_CV = compute_kshap_vars_boot(kshap_CV)
-                kshap_vars_model = compute_kshap_vars_boot(kshap_model)
-                kshap_covs = compute_kshap_covs_boot(kshap_model, kshap_CV)
-                
-                # Compute final kSHAP estimate
-                final_kshap_ests, corrs = final_cv_kshap(vanilla_kshap_model, vanilla_kshap_CV, shap_CV_true,
-                                kshap_covs, kshap_vars_model, kshap_vars_CV)
-                # Stop once the variability of the SHAP values is minimal relative to their spread.  
-                if np.max(corrs) < 1:
-                    kshap_vars_final = [(1 - corrs[j]**2)*kshap_vars_model[j] for j in range(d)]
-                    max_std_dev = np.sqrt(np.max(kshap_vars_final))
-                    prop_std = max_std_dev / (np.max(final_kshap_ests) - np.min(final_kshap_ests))
-                    if prop_std < t:
-                        converged = True
-                        if verbose:
-                            print("Converged with {} samples.".format(count))
-            #except:
-            #    continue
+            coalition_values_model = np.concatenate((coalition_values_model,coalition_values_model_t))
+            coalition_values_CV = np.concatenate((coalition_values_CV,coalition_values_CV_t))
+            coalition_vars_model = np.concatenate((coalition_vars_model,coalition_vars_model_t))
+            coalition_vars_CV = np.concatenate((coalition_vars_CV,coalition_vars_CV_t))
+            coalition_covs = np.concatenate((coalition_covs,coalition_covs_t))
+            
+            Z_vals = []
+        
+            # Compute vanilla SHAP values for model & approximation
+            vanilla_kshap_model = kshap_equation(f_model, xloc, coalitions, coalition_values_model, avg_pred_model)
+            vanilla_kshap_CV = kshap_equation(f_model, xloc, coalitions, coalition_values_CV, avg_pred_CV)
+            
+            # Compute variance & covariance of these SHAP estimates. 
+            # ls variance method doesn't work & grouped method only works when count is large, so bootstrapping.
+            n_boot_ = min(count, n_boot)
+            kshap_model, kshap_CV = boot_cv_kshap(f_model, xloc, avg_pred_model, avg_pred_CV, coalitions, coalition_values_model, coalition_values_CV, n_boot_)
+            kshap_vars_CV = compute_kshap_vars_boot(kshap_CV)
+            kshap_vars_model = compute_kshap_vars_boot(kshap_model)
+            kshap_covs = compute_kshap_covs_boot(kshap_model, kshap_CV)
+            
+            # Compute final kSHAP estimate
+            final_kshap_ests, corrs = final_cv_kshap(vanilla_kshap_model, vanilla_kshap_CV, shap_CV_true,
+                            kshap_covs, kshap_vars_model, kshap_vars_CV)
+            # Stop once the variability of the SHAP values is minimal relative to their spread.  
+            if np.max(corrs) < 1:
+                kshap_vars_final = [(1 - corrs[j]**2)*kshap_vars_model[j] for j in range(d)]
+                max_std_dev = np.sqrt(np.max(kshap_vars_final))
+                prop_std = max_std_dev / (np.max(final_kshap_ests) - np.min(final_kshap_ests))
+                if prop_std < t:
+                    converged = True
+                    if verbose:
+                        print("Converged with {} samples.".format(count))
     return final_kshap_ests, vanilla_kshap_model, vanilla_kshap_CV, corrs
 
 
@@ -384,20 +368,8 @@ def cv_kshap_compare(f_model, X, xloc,
         coalitions = np.append(coalitions, z).reshape((count, d))        
         Z_vals.append(z_x_vals)
         
-     
-        
-        
-        
-        #coalition_values_model = np.append(coalition_values_model, value_z_model)
-        #coalition_values_CV = np.append(coalition_values_CV, value_z_CV)
-        #coalition_vars_model = np.append(coalition_vars_model, z_cov[0,0])
-        #coalition_vars_CV = np.append(coalition_vars_CV, z_cov[1,1])
-        #coalition_covs = np.append(coalition_covs,z_cov[0,1])
-        # Append new coalition vector (feature-dim if mapped)
-
         if M is not None:
             if count==M:
-                
                 coalition_values_model, coalition_values_CV, coalition_vars_model, coalition_vars_CV, coalition_covs = conditional_means_vars_kshap(f_model,Z_vals,xloc,
                                                    independent_features,
                                                    gradient,hessian,
@@ -414,7 +386,7 @@ def cv_kshap_compare(f_model, X, xloc,
                                                                     coalitions, coalition_values_model, 
                                                                     coalition_values_CV,
                                                                     vanilla_kshap_model, vanilla_kshap_CV,
-                                                                    'boot', n_boot,  K, subset_size_distr,
+                                                                    'boot', n_boot,  K, 
                                                                     coalition_vars_model, coalition_vars_CV,coalition_covs)
                 
                 # Compute CV-based KernelSHAP estimate
@@ -427,7 +399,7 @@ def cv_kshap_compare(f_model, X, xloc,
                                                                     coalitions, coalition_values_model, 
                                                                     coalition_values_CV,
                                                                     vanilla_kshap_model, vanilla_kshap_CV,
-                                                                    'grouped', n_boot,  K, subset_size_distr,
+                                                                    'grouped', n_boot,  K, 
                                                                     coalition_vars_model, coalition_vars_CV,coalition_covs)
                 
                 # Compute CV-based KernelSHAP estimate
@@ -435,23 +407,21 @@ def cv_kshap_compare(f_model, X, xloc,
                                 kshap_covs_grouped, kshap_vars_model_grouped, kshap_vars_CV_grouped)               
                 
                 
-                kshap_vars_model_wls, kshap_vars_CV_wls, kshap_covs_wls = kshap_vars_and_cov(f_model, xloc,
+                kshap_vars_model_ls, kshap_vars_CV_ls, kshap_covs_ls = kshap_vars_and_cov(f_model, xloc,
                                                                     avg_pred_model, avg_pred_CV, 
                                                                     coalitions, coalition_values_model, 
                                                                     coalition_values_CV,
                                                                     vanilla_kshap_model, vanilla_kshap_CV,
-                                                                    'wls', n_boot,  K, subset_size_distr,
+                                                                    'ls', n_boot,  K, 
                                                                     coalition_vars_model, coalition_vars_CV,coalition_covs)
                 
                 # Compute CV-based KernelSHAP estimate
-                final_kshap_est_wls, corrs_wls = final_cv_kshap(vanilla_kshap_model, vanilla_kshap_CV, shap_CV_true,
-                                kshap_covs_wls, kshap_vars_model_wls, kshap_vars_CV_wls)
+                final_kshap_est_ls, corrs_ls = final_cv_kshap(vanilla_kshap_model, vanilla_kshap_CV, shap_CV_true,
+                                kshap_covs_ls, kshap_vars_model_ls, kshap_vars_CV_ls)
                 
                 converged = True
        
-    return vanilla_kshap_model, vanilla_kshap_CV, final_kshap_est_boot, corrs_boot, final_kshap_est_grouped, corrs_grouped, final_kshap_est_wls, corrs_wls
-
-
+    return vanilla_kshap_model, vanilla_kshap_CV, final_kshap_est_boot, corrs_boot, final_kshap_est_grouped, corrs_grouped, final_kshap_est_ls, corrs_ls
 
 
 
@@ -460,7 +430,7 @@ def kshap_vars_and_cov(f_model, xloc,
                         coalitions, coalition_values_model, 
                         coalition_values_CV,
                         vanilla_kshap_model, vanilla_kshap_CV,
-                        var_method, n_boot,  K, subset_size_distr,
+                        var_method, n_boot,  K, 
                         coalition_vars_model, coalition_vars_CV,coalition_covs):
     if var_method=='boot':
         kshap_model, kshap_CV = boot_cv_kshap(f_model, xloc, avg_pred_model, avg_pred_CV, coalitions, coalition_values_model, coalition_values_CV, n_boot)
@@ -472,30 +442,29 @@ def kshap_vars_and_cov(f_model, xloc,
         kshap_vars_CV = compute_kshap_vars_grouped(kshap_CV, K)
         kshap_vars_model = compute_kshap_vars_grouped(kshap_model, K)
         kshap_covs = compute_kshap_covs_grouped(kshap_model, kshap_CV, K)
-    elif var_method=='wls':
+    elif var_method=='ls':
         M = coalition_values_model.shape[0]
         if coalition_vars_model[0] == 0 or np.isnan(coalition_vars_model[0]):   # We need something more sophisticated here, but for the moment... 
-            coalition_vars_model, coalition_vars_CV, coalition_covs = kshap_model_vars_wls(coalitions,coalition_values_model,coalition_values_CV,
+            coalition_vars_model, coalition_vars_CV, coalition_covs = kshap_model_vars_ls(coalitions,coalition_values_model,coalition_values_CV,
                                      vanilla_kshap_model,vanilla_kshap_CV,avg_pred_model,avg_pred_CV)
 
-        kshap_vars_CV = compute_kshap_vars_wls( coalition_vars_CV,coalitions, subset_size_distr)
-        kshap_vars_model = compute_kshap_vars_wls(coalition_vars_model,coalitions, subset_size_distr)
-        kshap_covs = compute_kshap_vars_wls(coalition_covs,coalitions, subset_size_distr)
+        kshap_vars_CV = compute_kshap_vars_ls( coalition_vars_CV,coalitions)
+        kshap_vars_model = compute_kshap_vars_ls(coalition_vars_model,coalitions)
+        kshap_covs = compute_kshap_vars_ls(coalition_covs,coalitions)
     else:
-        sys.exit("var_method needs to be boot, grouped, or wls.")
+        sys.exit("var_method needs to be boot, grouped, or ls.")
     return kshap_vars_model, kshap_vars_CV, kshap_covs
 
 
 def kshap_equation(f_model, xloc, coalitions, coalition_values, avg_pred):
     '''
     Computes KernelSHAP estimates for all features. The equation is the solution to the 
-    weighted least squares problem of KernelSHAP. This inputs the dataset of M (z, v(z)).
+    least squares problem of KernelSHAP. This inputs the dataset of M (z, v(z)).
 
     If multilevel, coalitions is binary 1s & 0s of the low-dim problem.
     '''
     
     # Compute v(1), the prediction made using all known features in xloc
-    # d = xloc.shape[1]
     d = coalitions.shape[1] # low-dim if mapped
     M = coalition_values.shape[0]
     yloc_pred = f_model(xloc) # True even if using approximation not black-box model
@@ -550,7 +519,7 @@ def boot_cv_kshap(f_model, xloc, avg_pred_model, avg_pred_CV, coalitions,
         coalition_values_CV_boot = coalition_values_CV[idx]
         coalition_values_model_boot = coalition_values_model[idx]
 
-        # compute the kernelSHAP estimates on these bootstrapped samples, fitting WLS
+        # compute the kernelSHAP estimates on these bootstrapped samples, fitting ls
         kshap_CV_boot_all.append(kshap_equation(f_model, xloc, z_boot, coalition_values_CV_boot, avg_pred_CV))
         kshap_model_boot_all.append(kshap_equation(f_model, xloc, z_boot, coalition_values_model_boot, avg_pred_model))
 
@@ -584,7 +553,7 @@ def grouped_cv_kshap(f_model, xloc, avg_pred_model, avg_pred_CV, coalitions, coa
         coalition_values_CV_group = coalition_values_CV[idx]
         coalition_values_model_group = coalition_values_model[idx]
 
-        # compute the kernelSHAP estimates on these bootstrapped samples, fitting WLS
+        # compute the kernelSHAP estimates on these bootstrapped samples, fitting ls
         kshap_CV_grouped.append(kshap_equation(f_model, xloc, coalition_group, coalition_values_CV_group, avg_pred_CV))
         kshap_model_grouped.append(kshap_equation(f_model, xloc, coalition_group, coalition_values_model_group, avg_pred_model))
 
@@ -602,17 +571,14 @@ def compute_kshap_vars_grouped(kshap_ests_grouped, K=50):
     return (K/M)*np.diag(kshap_vars_subgroup)
 
 
-def compute_kshap_vars_wls(var_values, coalitions, subset_size_distr):
-    M = coalitions.shape[0]
+def compute_kshap_vars_ls(var_values, coalitions):
     d = coalitions.shape[1]
     #   mean_subset_values = np.matmul(coalitions, kshap_ests) + avg_pred
     #   var_values = np.mean((coalition_values - mean_subset_values)**2) * np.identity(M) 
     var_values = np.diagflat(var_values)
     # counts = np.sum(coalitions, axis=1).astype(int).tolist()
-    #W = np.diagflat([subset_size_distr[counts[i]] for i in range(M)])
-    W = np.diagflat(np.repeat(1,M))
     ones_vec = np.ones(d).reshape((d, 1))
-    A = coalitions.T @ W @ coalitions
+    A = coalitions.T @ coalitions
     try:
         A_inv = np.linalg.inv(A)
     except:
@@ -627,12 +593,12 @@ def compute_kshap_vars_wls(var_values, coalitions, subset_size_distr):
     
     C = np.diag(np.ones(d)) - np.outer(ones_vec,ones_vec) @ A_inv/np.matmul(np.matmul(ones_vec.T, A_inv), ones_vec)
 
-    inv_ZTW = A_inv @ C @ coalitions.T @ W
+    inv_ZT = A_inv @ C @ coalitions.T
 
-    kshap_vars_CV_wls = np.diagonal(inv_ZTW @ var_values @ inv_ZTW.T)
-    return kshap_vars_CV_wls
+    kshap_vars_CV_ls = np.diagonal(inv_ZT @ var_values @ inv_ZT.T)
+    return kshap_vars_CV_ls
 
-def kshap_model_vars_wls(coalitions,coalition_values_model,coalition_values_CV,
+def kshap_model_vars_ls(coalitions,coalition_values_model,coalition_values_CV,
                          vanilla_kshap_model,vanilla_kshap_CV,avg_pred_model,avg_pred_CV):
     model_resid = coalition_values_model - np.matmul(coalitions, vanilla_kshap_model) - avg_pred_model
     CV_resid = coalition_values_CV - np.matmul(coalitions, vanilla_kshap_CV) - avg_pred_CV
@@ -680,17 +646,6 @@ def compute_kshap_covs_grouped(kshap_model_grouped, kshap_CV_grouped, K):
     kshap_covs_grouped = [(K/M) * np.cov(kshap_CV_grouped[:,j], kshap_model_grouped[:,j])[0,1] for j in range(d)]
     return kshap_covs_grouped
 
-# def compute_kshap_covs_wls(coalitions, coalition_values_model, coalition_values_CV, subset_size_distr):
-#     M = coalition_values_model.shape[0]
-#     cov_values = np.cov(coalition_values_model, coalition_values_CV)[0,1] * np.identity(M)
-#     # W = np.diag(subset_size_distr[np.sum(coalitions, axis=0)])
-#     counts = np.sum(coalitions, axis=1).astype(int).tolist()
-#     #W = np.diagflat([subset_size_distr[counts[i]] for i in range(M)])
-#     W = np.diagflat(np.repeat(1,M))
-#     inv_ZTW = np.linalg.inv(coalitions.T @ W @ coalitions) @ coalitions.T @ W
-#     kshap_covs_CV_wls = np.diagonal(inv_ZTW @ cov_values @ inv_ZTW.T)
-#     return kshap_covs_CV_wls
-
 
 def final_cv_kshap(vanilla_kshap_model, vanilla_kshap_CV, shap_CV_true,
                     kshap_covs, kshap_vars_model, kshap_vars_CV):
@@ -721,9 +676,9 @@ def extract_results_kshap(obj):
     corr_ests_boot = np.array([obj[i][3] for i in range(n_iter)])
     final_shap_ests_grouped = np.array([obj[i][4] for i in range(n_iter)])
     corr_ests_grouped = np.array([obj[i][5] for i in range(n_iter)])
-    final_shap_ests_wls = np.array([obj[i][6] for i in range(n_iter)])
-    corr_ests_wls = np.array([obj[i][7] for i in range(n_iter)])
-    return vanilla_shap_model, vanilla_shap_CV, final_shap_ests_boot, corr_ests_boot, final_shap_ests_grouped, corr_ests_grouped, final_shap_ests_wls, corr_ests_wls
+    final_shap_ests_ls = np.array([obj[i][6] for i in range(n_iter)])
+    corr_ests_ls = np.array([obj[i][7] for i in range(n_iter)])
+    return vanilla_shap_model, vanilla_shap_CV, final_shap_ests_boot, corr_ests_boot, final_shap_ests_grouped, corr_ests_grouped, final_shap_ests_ls, corr_ests_ls
 
 
 def show_var_reducs_kshap(obj, verbose=True, message=None, ylim_zero=False):
@@ -732,7 +687,7 @@ def show_var_reducs_kshap(obj, verbose=True, message=None, ylim_zero=False):
     obj is a list of many runnings of cv_kshap() or cv_shapley_sampling().
 
     '''
-    vshap_ests_model, vshap_ests_CV, final_shap_ests_boot, corr_ests_boot, final_shap_ests_grouped, corr_ests_grouped, final_shap_ests_wls, corr_ests_wls = extract_results_kshap(obj)
+    vshap_ests_model, vshap_ests_CV, final_shap_ests_boot, corr_ests_boot, final_shap_ests_grouped, corr_ests_grouped, final_shap_ests_ls, corr_ests_ls = extract_results_kshap(obj)
     d = vshap_ests_model.shape[1]
     
     avg_corrs_empirical = np.array([np.corrcoef(vshap_ests_model[:,j], vshap_ests_CV[:,j])[0,1] for j in range(d)])
@@ -746,26 +701,23 @@ def show_var_reducs_kshap(obj, verbose=True, message=None, ylim_zero=False):
     theoretical_var_reducs_grouped = avg_corrs_grouped**2
     empirical_var_reducs_grouped = np.array([1 - (np.nanvar(final_shap_ests_grouped[:,j])/np.nanvar(vshap_ests_model[:,j])) for j in range(d)])
     
-    avg_corrs_wls = np.array([np.nanmean(corr_ests_wls[:,j]) for j in range(d)])
-    theoretical_var_reducs_wls = avg_corrs_wls**2
-    empirical_var_reducs_wls = np.array([1 - (np.nanvar(final_shap_ests_wls[:,j])/np.nanvar(vshap_ests_model[:,j])) for j in range(d)])
+    avg_corrs_ls = np.array([np.nanmean(corr_ests_ls[:,j]) for j in range(d)])
+    theoretical_var_reducs_ls = avg_corrs_ls**2
+    empirical_var_reducs_ls = np.array([1 - (np.nanvar(final_shap_ests_ls[:,j])/np.nanvar(vshap_ests_model[:,j])) for j in range(d)])
 
     if verbose:
-        # print("Using {} method for variance & covariance".format(text))
-
-         
         print("Empirical Vanilla and CV correlation: \n", np.round(avg_corrs_empirical,2))
         print("Estimated Correlations, Bootstrap: \n", np.round(avg_corrs_boot,2))
         print("Estimated Correlations, Grouped: \n", np.round(avg_corrs_grouped,2))
-        print("Estimated Correlations, WLS: \n", np.round(avg_corrs_wls,2))
+        print("Estimated Correlations, ls: \n", np.round(avg_corrs_ls,2))
 
         print("Theoretical Var Reductions from Vanilla and CV correlations:\n•", np.round(theoretical_var_reducs_empirical, 2))
         print("Theoretical variance reductions, bootstrap correlations:\n•", np.round(theoretical_var_reducs_boot, 2))
         print("Empirical variance reuctions, bootstrap correlations:\n",np.round(empirical_var_reducs_boot,2))
         print("Theoretical variance reductions, grouped correlations:\n•", np.round(theoretical_var_reducs_grouped, 2))
         print("Empirical variance reuctions, grouped correlations:\n",np.round(empirical_var_reducs_grouped,2))
-        print("Theoretical variance reductions, wls correlations:\n•", np.round(theoretical_var_reducs_wls, 2))
-        print("Empirical variance reuctions, wls correlations:\n",np.round(empirical_var_reducs_wls,2))
+        print("Theoretical variance reductions, ls correlations:\n•", np.round(theoretical_var_reducs_ls, 2))
+        print("Empirical variance reuctions, ls correlations:\n",np.round(empirical_var_reducs_ls,2))
 
     plt.rcParams["figure.figsize"] = [8, 6]
     plt.rcParams["figure.autolayout"] = True
@@ -775,11 +727,11 @@ def show_var_reducs_kshap(obj, verbose=True, message=None, ylim_zero=False):
     plt.plot(feat_idx, empirical_var_reducs_boot*100, "--x", c="blue")
     plt.plot(feat_idx, theoretical_var_reducs_grouped*100, "-o", c="red")
     plt.plot(feat_idx, empirical_var_reducs_grouped*100, "--x", c="red")
-    plt.plot(feat_idx, theoretical_var_reducs_wls*100, "-o", c="green")
-    plt.plot(feat_idx, empirical_var_reducs_wls*100, "--x", c="green")
+    plt.plot(feat_idx, theoretical_var_reducs_ls*100, "-o", c="green")
+    plt.plot(feat_idx, empirical_var_reducs_ls*100, "--x", c="green")
     plt.legend(['Between-Sim Correlation', 'Average Bootstrap Correlation', 'Empirical Reduction: Boostrap', 
                 'Average Grouped Correlation', 'Empirical Reduction: Grouped', 
-                'Average WLS Correlation', 'Empirical Reduction: WLS'])
+                'Average ls Correlation', 'Empirical Reduction: ls'])
     plt.suptitle("Variance Reduction of CV-adjusted SHAP\n{}".format(message))
     plt.xlabel("Feature index")
     if ylim_zero:

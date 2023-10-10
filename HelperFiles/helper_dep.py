@@ -1,5 +1,5 @@
 import numpy as np
-from helper2 import *
+from helper import *
 
 """
 Functions relevant for the dependent features case.
@@ -30,11 +30,12 @@ def f_first_order_approx(yloc, xnew, xloc, gradient):
 
 def make_banded_cov(FEATURE_VARS, FEATURE_COVS):
     '''
-    Makes banded covariance matrix. feature_vars contains the diagonal variances; 
-    feature_covs is a list of two off-diagonal covariances, e.g. 0.5 and 0.25.
+    Makes banded covariance matrix for simulated data. 
+    - feature_vars contains the diagonal variances
+    - feature_covs is a list of two off-diagonal covariances, e.g. 0.5 and 0.25.
     Then covariance between successive features is 0.5
         e.g. Cov(X1, X2)=0.5; Cov(X2, X3)=0.5; ...
-    Similarly, Cov(X"_j, X_{j+2}) = 0.25 for j in 0, ..., d-3
+    Similarly, Cov(X_j, X_{j+2}) = 0.25 for j in 0, ..., d-3
     '''
     d = FEATURE_VARS.shape[0]
     cov_mat = np.identity(d) * FEATURE_VARS
@@ -59,7 +60,7 @@ def compute_cond_mean_and_cov(xloc, S, feature_means, cov_mat):
     Sc = np.where(~np.isin(np.arange(d), S))[0]
     cov_SS = cov_mat[S][:, S]
     try:
-        cov_SS_inv = np.linalg.inv(cov_SS) # Bad things happen here
+        cov_SS_inv = np.linalg.inv(cov_SS) # Sometimes triggers warning
         cov_ScS = cov_mat[Sc][:, S]
         conditional_means = feature_means[Sc] + np.matmul(np.matmul(cov_ScS, cov_SS_inv), xloc[0][S] - feature_means[S])
         cov_ScSc = cov_mat[Sc][:, Sc]

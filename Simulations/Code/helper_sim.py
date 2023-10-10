@@ -4,18 +4,20 @@ from sklearn.linear_model import LogisticRegression
 import sys
 import pickle
 from os.path import join
-import matplotlib.pyplot as plt
 from sklearn.ensemble import RandomForestClassifier
 
 from sklearn.model_selection import train_test_split
 import lightgbm as lgb
 
+from helper import *
+from helper_dep import *
+from helper_indep import *
+from helper_shapley_sampling import *
+from helper_kshap import *
+import torch
+import torch.nn as nn
+from torch.utils.data import TensorDataset, DataLoader, WeightedRandomSampler
 
-from helper2 import *
-from helper2_dep import *
-from helper2_indep import *
-from helper2_shapley_sampling import *
-from helper4_kshap import *
 
 def fullsim(fname,X_locs,X,model,gradfn,hessfn,cov_mat,D_matrices,mapping_dict=[],sds=[],
             nsim_per_point=50,M=1000,n_samples_per_perm=[10,1],K=50, n_boot=100):
@@ -278,7 +280,6 @@ def fitmodgradhess(mod,X_train,y_train,X_test,y_test):
         def gradfn(model,xloc,BETA):
             return logreg_gradient(model, xloc, BETA)
 
-
         def hessfn(model,xloc,BETA):
             return logreg_hessian(model, xloc, BETA)
 
@@ -328,10 +329,6 @@ def fitmodgradhess(mod,X_train,y_train,X_test,y_test):
         
     elif mod == "nn":
         d = X_test.shape[1]
-        import torch
-        import torch.nn as nn
-        from torch.utils.data import TensorDataset, DataLoader, WeightedRandomSampler
-
         class TwoLayerNet(nn.Module):
             def __init__(self, input_size, hidden_size, output_size):
                 super(TwoLayerNet, self).__init__()
@@ -394,8 +391,6 @@ def fitmodgradhess(mod,X_train,y_train,X_test,y_test):
                 # Update the parameters using the optimizer
                 optimizer.step()
             print(f"Epoch {epoch+1}/{num_epochs}, Loss: {loss.item():.4f}")
-
-
 
         test_tensor = torch.tensor(X_test, dtype=torch.float32)
 

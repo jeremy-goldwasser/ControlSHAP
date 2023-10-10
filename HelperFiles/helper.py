@@ -217,18 +217,31 @@ def difference_gradient(model,xloc,sds):
     # difference calculation. Here we will use a symmetric
     # difference with 0.5 sd either side. 
     
-    grad = []
-    for i in range(xloc.shape[1]):
+    xlocu_arr = []
+    xlocd_arr = []
+    d = xloc.shape[1]
+    for i in range(d):
         xlocu, xlocd = np.copy(xloc), np.copy(xloc)
         if sds[i,0]==sds[i,1]:
             xlocu[0,i] = xloc[0,i] + 0.5*sds[i,0]
             xlocd[0,i] = xloc[0,i] - 0.5*sds[i,0]
-            grad.append( (model(xlocu)-model(xlocd))/sds[i,0])   
         else:
             xlocu[0,i] = sds[i,1]
             xlocd[0,i] = sds[i,0]
-            grad.append( model(xlocu)-model(xlocd))
-                 
+        xlocu_arr.append(xlocu)
+        xlocd_arr.append(xlocd)
+
+    xlocu_arr = np.array(xlocu_arr).reshape((d,d))
+    xlocd_arr = np.array(xlocd_arr).reshape((d,d))
+
+    outputs_u = model(xlocu_arr)
+    outputs_d = model(xlocd_arr)
+    grad = []
+    for i in range(d):
+        if sds[i,0]==sds[i,1]:
+            grad.append( (outputs_u[i]-outputs_d[i])/sds[i,0])   
+        else:
+            grad.append( (outputs_u[i]-outputs_d[i]))      
     return np.array(grad)
 
 def difference_hessian(model,xloc,sds):
@@ -252,4 +265,16 @@ def difference_hessian(model,xloc,sds):
     return (hess + hess.T)/2
 
 
+def correct_cov(cov_mat,Kr = 10000):
+    u, s, vh = np.linalg.svd(cov_mat, full_matrices=True)
+    if np.max(s)/np.min(s) < Kr:
+        cov2 = cov_mat
+    else:
+        s_max = s[0]
+        min_acceptable = s_max/Kr
+        s2 = np.copy(s)
+        s2[s <= min_acceptable] = min_acceptable
+        cov2 = np.matmul(u, np.matmul(np.diag(s2), vh))
+        
+    return (cov2+cov2.T)/2
 

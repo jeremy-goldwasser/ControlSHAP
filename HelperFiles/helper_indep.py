@@ -1,5 +1,5 @@
 import numpy as np
-from helper2 import *
+from helper import *
 
 """
 Functions relevant for the independent features case.

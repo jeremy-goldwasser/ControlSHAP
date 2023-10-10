@@ -3,18 +3,16 @@
 import numpy as np
 import shap
 import pandas as pd
-from sklearn.linear_model import LogisticRegression
-import sys
 
-from helper2 import *
-from helper2_dep import *
-from helper2_indep import *
-from helper2_shapley_sampling import *
-from helper4_kshap import *
-from helper_sim2 import *
+import sys
+sys.path.append('../../HelperFiles')
+from helper import *
+from helper_dep import *
+from helper_indep import *
+from helper_shapley_sampling import *
+from helper_kshap import *
+from helper_sim import *
 from os.path import join
-import matplotlib.pyplot as plt
-from sklearn.ensemble import RandomForestClassifier
 
 from sklearn.model_selection import train_test_split
 

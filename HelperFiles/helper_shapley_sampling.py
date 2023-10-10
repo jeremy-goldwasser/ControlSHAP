@@ -1,6 +1,6 @@
-from helper2 import *
-from helper2_indep import *
-from helper2_dep import *
+from helper import *
+from helper_indep import *
+from helper_dep import *
 
 
 def query_values_marginal(X, xloc, 
@@ -66,8 +66,6 @@ def query_values_conditional(X, xloc, S, j,
         Sjc = map_S(Sjc_orig, mapping_dict)
 
     n_known_features_Sj = SandJ.shape[0]
-    chgs_in_value_model = []
-    chgs_in_value_approx = []
     # Compute means and covariance of non-S features, given features in S
     means_given_S, cov_given_S = compute_cond_mean_and_cov(xloc, S, feature_means, cov_mat)
     means_given_Sj, cov_given_Sj = compute_cond_mean_and_cov(xloc, SandJ, feature_means, cov_mat)
@@ -159,8 +157,6 @@ def cv_shapley_sampling_j(f_model, X, xloc, j,
     diffs_model, diffs_approx = [], []
     count = 0
     converged = False
-    
-    yloc = f_model(xloc)
     
     Z_vals = []
     Zj_vals = []
@@ -254,10 +250,6 @@ def cv_shapley_sampling(f_model, X, xloc,
             Each key is an index of the number of "real" features in the dataset.
             Each value is a list of indices reflecting which columns in X correspond to that index's feature.
     - cov_mat: Covariance matrix. If none, we compute naive way; risks poor conditioning.
-    - var_method: Which method to use to estimate variance and covariance of SHAP estimates.
-            Must be 'boot', 'grouped', or 'wls'. 'boot' or 'wls' recommended.
-    - n_boot: Number of samples for bootstrapping. Used if var_method is 'boot'.
-    - K: Size of each group for computing SHAP estimates. Used if var_method is 'grouped'.
     - D_matrices: Matrices used to compute true SHAP value of control variate in dependent features case.
             Required if independent_features=False and shap_CV_true=None.
     - t: Stopping threshold if M not specified. From Covert & Lee:
