@@ -1,7 +1,6 @@
 #%% Import moduldes
 
 import numpy as np
-import shap
 import pandas as pd
 
 import sys
@@ -15,8 +14,8 @@ from helper_sim import *
 from os.path import join
 
 from sklearn.model_selection import train_test_split
-
-
+import warnings
+warnings.filterwarnings('ignore')
 
 
 n_pts = 40

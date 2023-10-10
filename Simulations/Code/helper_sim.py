@@ -8,7 +8,7 @@ from sklearn.ensemble import RandomForestClassifier
 
 from sklearn.model_selection import train_test_split
 import lightgbm as lgb
-
+sys.path.append('../../HelperFiles')
 from helper import *
 from helper_dep import *
 from helper_indep import *
@@ -165,7 +165,6 @@ def loaddata(name):
         X_test_raw = np.load(join(dirpath, "X_test.npy"))
         y_train = np.load(join(dirpath, "Y_train.npy"))
         y_test = np.load(join(dirpath, "Y_test.npy"))
-        full_dim = X_train_raw.shape[1] # dimension including all binarized categorical columns
         X_df = pd.read_csv(join(dirpath, "X_df.csv"))
 
 
@@ -175,14 +174,9 @@ def loaddata(name):
         X_train = rescale(X_train_raw, trainmean, trainstd)
         X_test = rescale(X_test_raw, trainmean, trainstd)
 
-        feature_means = np.mean(X_train, axis=0)
-        cov_mat = np.cov(X_train, rowvar=False)
-
-
         df_orig.columns = df_orig.columns.str.replace(' ', '_')
         categorical_cols = ['Job', 'Marital', 'Education', 'Default', 'Housing',
                             'Loan', 'Contact', 'Month', 'Prev_Outcome']
-
 
         mapping_dict = get_mapping_dict(df_orig, X_df, X_train_raw, categorical_cols)
 
