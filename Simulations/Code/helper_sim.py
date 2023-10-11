@@ -7,7 +7,7 @@ from os.path import join
 from sklearn.ensemble import RandomForestClassifier
 
 from sklearn.model_selection import train_test_split
-import lightgbm as lgb
+# import lightgbm as lgb
 sys.path.append('../../HelperFiles')
 from helper import *
 from helper_dep import *
@@ -113,10 +113,10 @@ def fullsim(fname,X_locs,X,model,gradfn,hessfn,cov_mat,D_matrices,mapping_dict=[
         sss_indep.append(sims_ss_indep)
         sss_dep.append(sims_ss_dep)
     
-        np.save(fname+'_kshap_indep.npy',kshaps_indep)
-        np.save(fname+'_kshap_dep.npy',kshaps_dep)
-        np.save(fname+'_ss_indep.npy',sss_indep)
-        np.save(fname+'_ss_dep.npy',sss_dep)
+        np.save('../Results/' + fname+'_kshap_indep.npy',kshaps_indep)
+        np.save('../Results/' + fname+'_kshap_dep.npy',kshaps_dep)
+        np.save('../Results/' + fname+'_ss_indep.npy',sss_indep)
+        np.save('../Results/' + fname+'_ss_dep.npy',sss_dep)
         
         
 def correct_cov(cov_mat,Kr):
@@ -279,47 +279,47 @@ def fitmodgradhess(mod,X_train,y_train,X_test,y_test):
 
         sds = BETA
     
-    elif mod == "gbm":
-        d = X_train.shape[1]
-        d_train = lgb.Dataset(X_train, label=y_train)
-        d_test = lgb.Dataset(X_test, label=y_test)
+    # elif mod == "gbm":
+    #     d = X_train.shape[1]
+    #     d_train = lgb.Dataset(X_train, label=y_train)
+    #     d_test = lgb.Dataset(X_test, label=y_test)
 
-        params = {
-            "max_bin": 512,
-            "learning_rate": 0.05,
-            "boosting_type": "gbdt",
-            "objective": "binary",
-            "metric": "binary_logloss",
-            "num_leaves": 8,
-            "verbose": -1,
-            "min_data": 100,
-            "boost_from_average": True
-        }
+    #     params = {
+    #         "max_bin": 512,
+    #         "learning_rate": 0.05,
+    #         "boosting_type": "gbdt",
+    #         "objective": "binary",
+    #         "metric": "binary_logloss",
+    #         "num_leaves": 8,
+    #         "verbose": -1,
+    #         "min_data": 100,
+    #         "boost_from_average": True
+    #     }
 
-        lgbmodel = lgb.train(params, d_train, 10000, valid_sets=[d_test])
-        print("Class imbalance: {}".format(100*(max(np.mean(y_test), 1-np.mean(y_test)))))
-        print("Estimation accuracy: {}".format(np.mean((lgbmodel.predict(X_test) > 0.5)==y_test)*100))
-
-
-        def model(xloc):
-            return lgbmodel.predict(xloc)
+    #     lgbmodel = lgb.train(params, d_train, 10000, valid_sets=[d_test])
+    #     print("Class imbalance: {}".format(100*(max(np.mean(y_test), 1-np.mean(y_test)))))
+    #     print("Estimation accuracy: {}".format(np.mean((lgbmodel.predict(X_test) > 0.5)==y_test)*100))
 
 
-        def gradfn(model,xloc,sds):
-            return difference_gradient(model,xloc,sds)
+    #     def model(xloc):
+    #         return lgbmodel.predict(xloc)
 
 
-        def hessfn(model,xloc,sds):
-            return difference_hessian(model,xloc,sds)
+    #     def gradfn(model,xloc,sds):
+    #         return difference_gradient(model,xloc,sds)
 
-        sds = []
-        for i in range(d):
-            uu = np.unique(X_train[:,i])
-            if len(uu) == 2:
-                sds.append(uu)
-            else:
-                sds.append(np.repeat(np.std(X_train[:,i]),2))
-        sds = np.array(sds)
+
+    #     def hessfn(model,xloc,sds):
+    #         return difference_hessian(model,xloc,sds)
+
+    #     sds = []
+    #     for i in range(d):
+    #         uu = np.unique(X_train[:,i])
+    #         if len(uu) == 2:
+    #             sds.append(uu)
+    #         else:
+    #             sds.append(np.repeat(np.std(X_train[:,i]),2))
+    #     sds = np.array(sds)
         
     elif mod == "nn":
         d = X_test.shape[1]
