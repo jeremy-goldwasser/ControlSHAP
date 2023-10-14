@@ -594,7 +594,6 @@ def compute_kshap_vars_ls(var_values, coalitions):
     C = np.diag(np.ones(d)) - np.outer(ones_vec,ones_vec) @ A_inv/np.matmul(np.matmul(ones_vec.T, A_inv), ones_vec)
 
     inv_ZT = A_inv @ C @ coalitions.T
-
     kshap_vars_CV_ls = np.diagonal(inv_ZT @ var_values @ inv_ZT.T)
     return kshap_vars_CV_ls
 
