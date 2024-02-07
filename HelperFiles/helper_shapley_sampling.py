@@ -145,7 +145,7 @@ def cv_shapley_sampling_j(f_model, X, xloc, j,
                         n_samples_per_perm=10, 
                         paired=True,
                         cov_mat=None,
-                        verbose=False):
+                        verbose=False, return_vars=False):
 
     '''
     Estimate SHAP value for j'th feature using our CV-based method. Main description in cv_shapley_sampling().
@@ -184,11 +184,10 @@ def cv_shapley_sampling_j(f_model, X, xloc, j,
             if tZ_vals is None:
                 # Could not invert matrix using sampled subset S
                 continue
-
         Z_vals.append(tZ_vals)
         Zj_vals.append(tZj_vals)
-       
         count += 1
+       
         if M is not None:
             if count==M:
                 diffs_model, diffs_approx = chg_in_values(Z_vals,Zj_vals,xloc,independent_features,f_model,gradient,hessian,M,n_samples_per_perm)
@@ -217,6 +216,20 @@ def cv_shapley_sampling_j(f_model, X, xloc, j,
                         print("Converged with {} samples.".format(count))
 
     final_shap_est = final_shap_est.item()
+    if return_vars:
+        vars_vanilla, vars_CV = [], []
+        for count in range(M):
+            var_vanilla = np.var(diffs_model[:(count+1)]) / (count+1)
+            corr_ct = compute_cv_shap(diffs_model[:(count+1)], diffs_approx[:(count+1)], shap_CV_true)[3]
+            if corr_ct >= 0.99: 
+                # print("here")
+                corr_ct = 0.99
+            var_CV = (1 - corr_ct**2)*var_vanilla
+            vars_vanilla.append(var_vanilla)
+            vars_CV.append(var_CV)
+
+        vars = np.array([vars_vanilla, vars_CV])
+        return final_shap_est, vanilla_shap_model, vanilla_shap_CV, corr, vars
     return final_shap_est, vanilla_shap_model, vanilla_shap_CV, corr
 
 
