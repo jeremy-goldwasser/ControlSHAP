@@ -32,7 +32,7 @@ def query_values_marginal(X, xloc,
     Zj_vals = []
 
     for i in range(n_samples_per_perm):
-        # Sample "unknown" features from a dataset sample z zzz
+        # Sample "unknown" features from a dataset sample z
         z = X[np.random.choice(n, size=1),:]
         z_x_s, z_x_s_j = np.copy(xloc), np.copy(xloc)
         z_x_s[0][Sc] = z[0][Sc]
@@ -160,9 +160,6 @@ def cv_shapley_sampling_j(f_model, X, xloc, j,
     
     Z_vals = []
     Zj_vals = []
-    
-    diffs_model = []
-    diffs_approx = []
     
     while not converged:
         if not paired or count % 2 == 0:

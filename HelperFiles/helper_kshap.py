@@ -443,7 +443,6 @@ def kshap_vars_and_cov(f_model, xloc,
         kshap_vars_model = compute_kshap_vars_grouped(kshap_model, K)
         kshap_covs = compute_kshap_covs_grouped(kshap_model, kshap_CV, K)
     elif var_method=='ls':
-        M = coalition_values_model.shape[0]
         if coalition_vars_model[0] == 0 or np.isnan(coalition_vars_model[0]):   # We need something more sophisticated here, but for the moment... 
             coalition_vars_model, coalition_vars_CV, coalition_covs = kshap_model_vars_ls(coalitions,coalition_values_model,coalition_values_CV,
                                      vanilla_kshap_model,vanilla_kshap_CV,avg_pred_model,avg_pred_CV)
